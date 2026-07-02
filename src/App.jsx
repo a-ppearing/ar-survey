@@ -25,10 +25,10 @@ const TEXT = "#EDEBE4";
 const SUBTEXT = "#9CA3AF";
 
 const QUESTIONS = [
-  { id: "hasFitIssues", type: "yesno", text: "Have you experienced clothing-related fit issues since starting the gym (fitting, stretchiness, etc.)?", isNew: false },
+  { id: "hasFitIssues", type: "yesno", text: "Have you experienced clothing fit issues since starting the gym — in gym wear or in everyday/casual clothes (fitting, stretchiness, etc.)?", isNew: false },
   { id: "issueTypes", type: "multi", text: "Which of these have been issues for you? Select all that apply.", isNew: false,
     options: ["Breathability", "Restriction / not enough stretch", "Not fitting properly", "Ripping often", "Doesn't suit my build/shape", "Too big a jump between sizes (e.g. M to L)", "Need oversized shirts for chest size", "Uneven hip-to-thigh ratio in trousers", "Hard to find accessible sizes nearby", "Want a more tailored look", "Tight at the waist when cutting", "Polyester trade-off (sweat vs. cutting goals)", "Thighs too big for a good length"] },
-  { id: "fitsLengthNotWidth", type: "yesno", text: "Do clothes generally fit you length-wise, but not account for your build width-wise?", isNew: false },
+  { id: "fitsLengthNotWidth", type: "yesno", text: "Do clothes — gym wear or everyday — generally fit you length-wise, but not account for your build width-wise?", isNew: false },
   { id: "age", type: "number", text: "What's your age?", isNew: true, min: 13, max: 90 },
   { id: "gymDuration", type: "select", text: "How long have you been training?", isNew: true,
     options: ["Under 3 months", "3–6 months", "6–12 months", "1–2 years", "2–5 years", "5+ years"] },
@@ -49,11 +49,59 @@ const QUESTIONS = [
   { id: "returnItemsRegularly", type: "yesno", text: "Do you return gym clothing items regularly due to fit?", isNew: true },
   { id: "willingnessToPayMore", type: "select", text: "Would you pay more for sizing built around physique (e.g. \"athletic fit\" tiers) rather than standard S–XL?", isNew: true,
     options: ["Yes", "Maybe", "No"] },
+  { id: "garmentTypeMostTrouble", type: "select", text: "Which type of clothing gives you the most trouble with fit — tops, bottoms, or both equally?", isNew: true,
+    options: ["Tops", "Bottoms", "Both equally"] },
+  { id: "gymWearVsEveryday", type: "select", text: "Do these fit issues happen more in gym/activewear, in everyday clothes, or both equally?", isNew: true,
+    options: ["Gym / activewear", "Everyday clothes", "Both equally"] },
+  { id: "shoppingRoute", type: "select", text: "What's your usual shopping route for clothes?", isNew: true,
+    options: ["High-street brands", "Activewear specialists", "Tailored / made-to-measure", "Mix of the above"] },
+  { id: "priceForGoodFit", type: "select", text: "Roughly how much would you pay for a top or bottom that actually fit your build well?", isNew: true,
+    options: ["Under £20", "£20–40", "£40–60", "£60+"] },
+  { id: "avoidedBuyingDueToFit", type: "yesno", text: "Have you ever avoided buying something you liked because you knew the fit would be wrong?", isNew: true },
+  { id: "styleEffortChanged", type: "yesno", text: "Has your style or how much effort you put into your appearance changed since you started training?", isNew: true },
+  { id: "wardrobeReflectsPhysique", type: "select", text: "Outside the gym, does your current wardrobe reflect your physique, or feel like it hides it?", isNew: true,
+    options: ["Reflects it well", "Hides it", "Neutral / doesn't think about it"] },
+  { id: "trainSpecificSizingInterest", type: "yesno", text: "Would you be interested in clothing made specifically for people who train, rather than general sizing?", isNew: true },
   { id: "fabricRanking", type: "rank", text: "Rank these from most to least important in your fabric choice.", isNew: true,
     options: ["Breathability", "Stretch", "Durability"] },
 ];
 
 const CONDITIONAL = { issueTypes: (a) => a.hasFitIssues === "Yes" };
+
+// Free-text "time in gym" answers from early responses — kept as raw notes
+// since they weren't collected in the structured gymDuration buckets.
+const LEGACY_GYM_DURATION_NOTES = [
+  "N/A",
+  "1 year and a half — 15 yo",
+  "1 year — 15 yo",
+  "1 year — 27 yo",
+  "8 months — 17 yo",
+  "5 years — 22 yo",
+  "5 years — 26 yo",
+  "2 months — 20 yo",
+  "1.5 years — 19 yo",
+  "9 months — 17 yo",
+  "2 years — 26 yo",
+];
+
+// Themes noted from early opportunity-sampling responses before the survey
+// was digitized. Shown as a plain reference list in results, not counted
+// against respondents since we don't know how many people raised each one.
+const LEGACY_ISSUE_NOTES = [
+  "Breathability",
+  "Restriction / wiggle room — stretchiness",
+  "Not fitting",
+  "Ripping often",
+  "Body shape",
+  "Too big a jump between M and L",
+  "Having to wear oversized shirts due to chest size",
+  "Trousers — uneven hip-to-leg ratio, flared look from quads or glutes",
+  "Oversized more often — more shopping needed to find accessible items",
+  "Wanting a more tailored look to compliment the physique",
+  "Tight on waist from cutting",
+  "Polyester trade-off — helps when cutting but increases sweat, depending on goals",
+  "Thighs too big for good length, or too long",
+];
 
 function visibleQuestions(answers) {
   return QUESTIONS.filter(q => !CONDITIONAL[q.id] || CONDITIONAL[q.id](answers));
@@ -521,6 +569,35 @@ function ResultsView({ responses, lastUpdated }) {
       <p style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 30 }}>
         {total} total submission{total === 1 ? "" : "s"}, updating in real time. Questions marked <NewBadge /> have fewer responses since they were added later — read percentages on those with caution.
       </p>
+
+      <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
+        <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+          Issues noted from early responses
+        </h3>
+        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+          Collected before the survey was digitized — listed as themes, not tied to individual respondent counts.
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+          {LEGACY_ISSUE_NOTES.map((note, i) => (
+            <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
+        <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+          Time in gym — early responses
+        </h3>
+        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+          Free-text answers collected before this became a structured question. Format: duration — age.
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+          {LEGACY_GYM_DURATION_NOTES.map((note, i) => (
+            <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+          ))}
+        </ul>
+      </div>
+
       {QUESTIONS.map(q => {
         const agg = aggregateFor(q, responses);
         return (
