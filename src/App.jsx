@@ -30,7 +30,7 @@ function GlobalStyles() {
       @keyframes qFadeSlide { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes viewFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 65% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(92,38,43,0.25); } 100% { box-shadow: 0 0 0 8px rgba(92,38,43,0); } }
+      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(138,60,68,0.25); } 100% { box-shadow: 0 0 0 8px rgba(138,60,68,0); } }
       @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
       .shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
@@ -52,13 +52,14 @@ function GlobalStyles() {
   );
 }
 
-const ACCENT = "#5C262B";
-const ACCENT_DIM = "#8B4048";
-const BG = "#B7A993";
-const PANEL = "#C2B49D";
-const LINE = "#A89678";
-const TEXT = "#3A2E28";
-const SUBTEXT = "#6B5E4F";
+const ACCENT = "#8A3C44";
+const ACCENT_DIM = "#5C2A30";
+const BG = "#1A1614";
+const PANEL = "#241E1A";
+const LINE = "#3A322C";
+const TEXT = "#EDE7E3";
+const SUBTEXT = "#A89A92";
+const ON_ACCENT = "#F2E9E7";
 
 function Logo({ size = 20, color = ACCENT }) {
   return (
@@ -120,6 +121,11 @@ const CONDITIONAL_V1 = { issueTypes: (a) => a.hasFitIssues === "Yes" };
 // ---------------------------------------------------------------------
 const QUESTIONS_V2 = [
   {
+    id: "prefaceFit", type: "interstitial",
+    title: "Before you begin",
+    subtitle: "The following questions concern the fit of clothing — sizing, cut, and comfort. Please keep this focus in mind as you answer, rather than style, price, or brand preference.",
+  },
+  {
     id: "thighWaistMismatch", type: "multi",
     text: "Have you experienced either of these in trousers or joggers? Select all that apply.",
     options: [
@@ -168,8 +174,8 @@ const QUESTIONS_V2 = [
   },
   {
     id: "sectionBreak1", type: "interstitial",
-    title: "Nice — you're halfway.",
-    subtitle: "Now for a few quick questions about style and expression.",
+    title: "Shifting focus",
+    subtitle: "You're halfway through. The following questions concern expression and personality — how clothing reflects your individual style and identity. Please keep this focus in mind as you answer, rather than fit or sizing.",
   },
   {
     id: "lessExpressionNow", type: "select",
@@ -265,7 +271,7 @@ function NewBadge() {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "Inter",
       fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-      color: BG, background: ACCENT, padding: "4px 9px", borderRadius: 3,
+      color: ON_ACCENT, background: ACCENT, padding: "4px 9px", borderRadius: 3,
     }}>
       New — needs responses
     </span>
@@ -292,10 +298,10 @@ function Button({ children, onClick, primary, disabled, style, className = "" })
       fontFamily: "Inter", fontWeight: 600, fontSize: 15, cursor: disabled ? "not-allowed" : "pointer",
       padding: "13px 24px", borderRadius: 8, border: primary ? "none" : `1px solid ${LINE}`,
       background: primary ? (disabled ? ACCENT_DIM : ACCENT) : "transparent",
-      color: primary ? BG : TEXT, opacity: disabled ? 0.6 : 1,
+      color: primary ? ON_ACCENT : TEXT, opacity: disabled ? 0.6 : 1,
       display: "inline-flex", alignItems: "center", gap: 6,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
-      boxShadow: primary && !disabled ? "0 2px 10px rgba(92,38,43,0.25)" : "none",
+      boxShadow: primary && !disabled ? "0 2px 10px rgba(138,60,68,0.25)" : "none",
       ...style,
     }}>
       {children}
@@ -363,7 +369,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
             <div key={label} onClick={() => set(i + 1)} style={{
               flex: 1, textAlign: "center", cursor: "pointer", padding: "14px 4px",
               borderRadius: 6, border: `1px solid ${value === i + 1 ? ACCENT : LINE}`,
-              background: value === i + 1 ? "rgba(92,38,43,0.12)" : "transparent",
+              background: value === i + 1 ? "rgba(138,60,68,0.12)" : "transparent",
             }}>
               <div style={{ fontFamily: "Bebas Neue", fontSize: 22, color: value === i + 1 ? ACCENT : TEXT }}>{i + 1}</div>
               <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, marginTop: 2 }}>{label}</div>
@@ -485,7 +491,7 @@ function OptionPill({ label, selected, onClick }) {
       flex: 1, textAlign: "center", padding: "17px 0", borderRadius: 8, cursor: "pointer",
       fontFamily: "Inter", fontWeight: 600, fontSize: 15,
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(92,38,43,0.14)" : "transparent",
+      background: selected ? "rgba(138,60,68,0.14)" : "transparent",
       color: selected ? ACCENT : TEXT,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
@@ -499,7 +505,7 @@ function OptionRow({ label, selected, onClick, checkbox }) {
     <div onClick={onClick} className="tap-target opt-hover" style={{
       display: "flex", alignItems: "center", gap: 10, padding: "14px 14px", borderRadius: 8, cursor: "pointer",
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(92,38,43,0.10)" : "transparent",
+      background: selected ? "rgba(138,60,68,0.10)" : "transparent",
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
       <div className="tap-target" style={{
@@ -508,7 +514,7 @@ function OptionRow({ label, selected, onClick, checkbox }) {
         background: selected ? ACCENT : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {selected && <span className="pop-in"><CheckCircle2 size={14} color={BG} strokeWidth={3} /></span>}
+        {selected && <span className="pop-in"><CheckCircle2 size={14} color={ON_ACCENT} strokeWidth={3} /></span>}
       </div>
       <span style={{ fontFamily: "Inter", fontSize: 15, color: TEXT }}>{label}</span>
     </div>
@@ -941,19 +947,11 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
             <Logo size={20} /> {view === "results" ? resultsSurvey.title : survey.title}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {view !== "survey" && (
-              <button
-                onClick={() => setView("survey")}
-                className="tap-target"
-                style={{
-                  background: "none", border: "none", cursor: "pointer", padding: 0,
-                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
-                  textDecoration: "underline",
-                }}
-              >
-                take the survey
-              </button>
+              <Button onClick={() => setView("survey")} style={{ padding: "8px 16px", fontSize: 13 }}>
+                <ChevronLeft size={14} /> Back to survey
+              </Button>
             )}
             {view !== "gate" && view !== "results" && (
               <button
