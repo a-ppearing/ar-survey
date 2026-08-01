@@ -30,7 +30,7 @@ function GlobalStyles() {
       @keyframes qFadeSlide { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes viewFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 65% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(138,60,68,0.25); } 100% { box-shadow: 0 0 0 8px rgba(138,60,68,0); } }
+      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(125,46,55,0.25); } 100% { box-shadow: 0 0 0 8px rgba(125,46,55,0); } }
       @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
       .shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
@@ -50,27 +50,34 @@ function GlobalStyles() {
       ::-webkit-scrollbar-thumb { background: ${LINE}; border-radius: 8px; }
 
       :root, :root[data-theme="dark"] {
-        --bg: #1A1614; --panel: #241E1A; --line: #3A322C; --text: #EDE7E3; --subtext: #A89A92;
-        --error: #E08A82; --success: #5BAE72; --header-bg: rgba(38,36,31,0.85);
+        --bg: #15110F; --panel: #1F1916; --line: #362D26; --text: #F2E7DA; --subtext: #AC9C8C;
+        --error: #D98D85; --success: #6FAE85; --success-glow: rgba(111,174,133,0.22);
+        --header-bg: rgba(21,17,15,0.82); --panel-shadow: 0 8px 28px rgba(0,0,0,0.32);
+        --ambient: radial-gradient(ellipse 900px 500px at 50% -8%, rgba(125,46,55,0.16), transparent 60%),
+                   radial-gradient(ellipse 700px 500px at 100% 100%, rgba(125,46,55,0.06), transparent 60%);
       }
       :root[data-theme="light"] {
-        --bg: #F7F3EF; --panel: #FFFFFF; --line: #E1D8CF; --text: #241B16; --subtext: #786A60;
-        --error: #B23A30; --success: #2F8F4E; --header-bg: rgba(247,243,239,0.85);
+        --bg: #FAF6EF; --panel: #FFFEFB; --line: #E8DECB; --text: #2B2119; --subtext: #8D7C68;
+        --error: #A63B33; --success: #327A4D; --success-glow: rgba(50,122,77,0.16);
+        --header-bg: rgba(250,246,239,0.82); --panel-shadow: 0 8px 28px rgba(75,55,35,0.08);
+        --ambient: radial-gradient(ellipse 900px 500px at 50% -8%, rgba(125,46,55,0.07), transparent 60%),
+                   radial-gradient(ellipse 700px 500px at 100% 100%, rgba(125,46,55,0.04), transparent 60%);
       }
       html, body { background: var(--bg); transition: background-color 0.25s ease; }
       body, body * { transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease; }
+      .ambient-bg { background-image: var(--ambient); background-attachment: fixed; }
     `}</style>
   );
 }
 
-const ACCENT = "#8A3C44";
-const ACCENT_DIM = "#5C2A30";
+const ACCENT = "#7D2E37";
+const ACCENT_DIM = "#4C1B22";
 const BG = "var(--bg)";
 const PANEL = "var(--panel)";
 const LINE = "var(--line)";
 const TEXT = "var(--text)";
 const SUBTEXT = "var(--subtext)";
-const ON_ACCENT = "#F2E9E7";
+const ON_ACCENT = "#F6ECDF";
 const ERROR = "var(--error)";
 const SUCCESS = "var(--success)";
 
@@ -364,7 +371,7 @@ function Button({ children, onClick, primary, disabled, style, className = "" })
       color: primary ? ON_ACCENT : TEXT, opacity: disabled ? 0.6 : 1,
       display: "inline-flex", alignItems: "center", gap: 6,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
-      boxShadow: primary && !disabled ? "0 2px 10px rgba(138,60,68,0.25)" : "none",
+      boxShadow: primary && !disabled ? "0 4px 18px rgba(125,46,55,0.22)" : "none",
       ...style,
     }}>
       {children}
@@ -447,7 +454,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange, com
             <div key={label} onClick={() => set(i + 1)} style={{
               flex: 1, textAlign: "center", cursor: "pointer", padding: "14px 4px",
               borderRadius: 6, border: `1px solid ${value === i + 1 ? ACCENT : LINE}`,
-              background: value === i + 1 ? "rgba(138,60,68,0.12)" : "transparent",
+              background: value === i + 1 ? "rgba(125,46,55,0.12)" : "transparent",
             }}>
               <div style={{ fontFamily: "Bebas Neue", fontSize: 22, color: value === i + 1 ? ACCENT : TEXT }}>{i + 1}</div>
               <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, marginTop: 2 }}>{label}</div>
@@ -579,7 +586,7 @@ function OptionPill({ label, selected, onClick }) {
       flex: 1, textAlign: "center", padding: "17px 0", borderRadius: 8, cursor: "pointer",
       fontFamily: "Inter", fontWeight: 600, fontSize: 15,
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(138,60,68,0.14)" : "transparent",
+      background: selected ? "rgba(125,46,55,0.14)" : "transparent",
       color: selected ? ACCENT : TEXT,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
@@ -593,7 +600,7 @@ function OptionRow({ label, selected, onClick, checkbox }) {
     <div onClick={onClick} className="tap-target opt-hover" style={{
       display: "flex", alignItems: "center", gap: 10, padding: "14px 14px", borderRadius: 8, cursor: "pointer",
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(138,60,68,0.10)" : "transparent",
+      background: selected ? "rgba(125,46,55,0.10)" : "transparent",
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
       <div className="tap-target" style={{
@@ -739,7 +746,7 @@ function Survey({ survey, onDone, isTest }) {
         {isTest && (
           <div style={{
             display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
-            background: "rgba(138,60,68,0.14)", border: `1px solid ${ACCENT_DIM}`, borderRadius: 8,
+            background: "rgba(125,46,55,0.14)", border: `1px solid ${ACCENT_DIM}`, borderRadius: 8,
             padding: "10px 14px", fontFamily: "Inter", fontSize: 12.5, color: TEXT,
           }}>
             <FlaskConical size={15} color={ACCENT} style={{ flexShrink: 0 }} />
@@ -753,7 +760,7 @@ function Survey({ survey, onDone, isTest }) {
           </div>
         )}
         <div key={page.map(fq => fq.id).join("-")} className="q-anim" style={{
-          background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14,
+          background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14, boxShadow: "var(--panel-shadow)",
           padding: isInterstitialPage ? "8px 20px" : "24px 20px",
         }}>
           {isInterstitialPage ? (
@@ -832,7 +839,7 @@ function ThankYou({ table, responseId, onViewResults }) {
         Thanks — your answers are in. The questionnaire is finished either way; everything below is optional. If you want to fill it out again for someone else nearby, refresh the page.
       </p>
 
-      <div style={{ marginTop: 30, textAlign: "left", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "20px 20px" }}>
+      <div style={{ marginTop: 30, textAlign: "left", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "20px 20px", boxShadow: "var(--panel-shadow)" }}>
         <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 14, color: TEXT, marginBottom: 4 }}>
           Willing to take other questionnaires?
         </div>
@@ -1071,7 +1078,7 @@ function RespondentBreakdown({ survey, responses }) {
             <button key={i} onClick={() => setOpenIdx(isOpen ? null : i)} className="tap-target" style={{
               fontFamily: "Inter", fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8,
               border: `1.5px solid ${isOpen ? ACCENT : LINE}`,
-              background: isOpen ? "rgba(138,60,68,0.14)" : "transparent",
+              background: isOpen ? "rgba(125,46,55,0.14)" : "transparent",
               color: isOpen ? ACCENT : TEXT, cursor: "pointer",
               WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
             }}>
@@ -1114,7 +1121,7 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, fontFamily: "Inter", fontSize: 11, color: SUBTEXT }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: 99, background: SUCCESS, display: "inline-block", boxShadow: "0 0 0 3px rgba(91,174,114,0.2)" }} />
+            <span style={{ width: 7, height: 7, borderRadius: 99, background: SUCCESS, display: "inline-block", boxShadow: "0 0 0 3px var(--success-glow)" }} />
             Live{lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
           </span>
           {onStartTest && !survey.legacy && (
@@ -1310,7 +1317,7 @@ export default function App() {
   const exitTest = () => setView(preTestView);
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT }}>
+    <div className="ambient-bg" style={{ minHeight: "100vh", background: BG, color: TEXT }}>
       <GlobalStyles />
       <div style={{
         position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${LINE}`, padding: "16px 20px",
