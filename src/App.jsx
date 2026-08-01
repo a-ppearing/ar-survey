@@ -215,6 +215,10 @@ const SURVEYS = {
     key: "v2", table: "expression_survey_responses", title: "AR SURVEY",
     shortTitle: "AR Survey", questions: QUESTIONS_V2, conditional: CONDITIONAL_V2, legacy: false,
   },
+  v1: {
+    key: "v1", table: "survey_responses", title: "GYM FIT SURVEY (ARCHIVED)",
+    shortTitle: "Original Gym Fit", questions: QUESTIONS_V1, conditional: CONDITIONAL_V1, legacy: true,
+  },
 };
 
 // Free-text "time in gym" answers from early responses — kept as raw notes
@@ -919,10 +923,12 @@ function wantsResultsFromUrl() {
 
 export default function App() {
   useFonts();
-  const survey = SURVEYS.v2;
+  const survey = SURVEYS.v2; // the questionnaire people fill out is always the current one
   const [view, setView] = useState(() => (wantsResultsFromUrl() ? "gate" : "survey")); // survey | thanks | gate | results
+  const [resultsSurveyKey, setResultsSurveyKey] = useState("v2"); // which results are being viewed — v1 is results-only
+  const resultsSurvey = SURVEYS[resultsSurveyKey];
   const isResultsActive = view === "results";
-  const { responses, error, lastUpdated } = useResponses(isResultsActive, survey.table);
+  const { responses, error, lastUpdated } = useResponses(isResultsActive, resultsSurvey.table);
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT }}>
@@ -933,7 +939,7 @@ export default function App() {
       }}>
         <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
-            <Logo size={20} /> {survey.title}
+            <Logo size={20} /> {view === "results" ? resultsSurvey.title : survey.title}
           </div>
           {view !== "gate" && view !== "results" && (
             <button
@@ -948,10 +954,23 @@ export default function App() {
               results
             </button>
           )}
+          {view === "results" && (
+            <button
+              onClick={() => setResultsSurveyKey(k => (k === "v2" ? "v1" : "v2"))}
+              className="tap-target"
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: 0,
+                fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                textDecoration: "underline",
+              }}
+            >
+              {resultsSurveyKey === "v2" ? "view archived survey results" : "back to AR survey results"}
+            </button>
+          )}
         </div>
       </div>
 
-      <div key={view} className="view-fade">
+      <div key={`${view}-${resultsSurveyKey}`} className="view-fade">
         {view === "survey" && <Survey survey={survey} onDone={() => setView("thanks")} />}
         {view === "thanks" && <ThankYou onViewResults={() => setView("gate")} />}
         {view === "gate" && <PasscodeGate onUnlock={() => setView("results")} />}
@@ -960,7 +979,7 @@ export default function App() {
             ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: SUBTEXT }}>Loading responses…</div>
             : error
               ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: "#C0524A" }}>{error}</div>
-              : <ResultsView survey={survey} responses={responses} lastUpdated={lastUpdated} />
+              : <ResultsView survey={resultsSurvey} responses={responses} lastUpdated={lastUpdated} />
         )}
       </div>
     </div>
