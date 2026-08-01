@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3, Sun, Moon, FlaskConical, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -1191,30 +1191,68 @@ function DemographicBreakdown({ question, responses, survey }) {
 
   const options = optionsForQuestion(question);
 
+  const PIE_SIZE = 116;
+  const PIE_OUTER = 52;
+  const PIE_INNER = 28;
+
+  const SinglePie = ({ row }) => {
+    const data = options
+      .map((opt, i) => ({ name: opt, value: row[opt] || 0, color: colorForOptionIndex(i) }))
+      .filter(d => d.value > 0);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: PIE_SIZE + 8 }}>
+        <PieChart width={PIE_SIZE} height={PIE_SIZE}>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={PIE_OUTER}
+            innerRadius={PIE_INNER}
+            paddingAngle={data.length > 1 ? 2 : 0}
+            stroke={PANEL}
+            strokeWidth={2}
+            isAnimationActive={false}
+          >
+            {data.map((d, i) => <Cell key={d.name} fill={d.color} />)}
+          </Pie>
+          <Tooltip
+            contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }}
+            labelStyle={{ color: TEXT, fontWeight: 600 }}
+            itemStyle={{ color: TEXT }}
+            formatter={(value, name) => [value, name]}
+          />
+        </PieChart>
+        <div style={{ fontFamily: "Inter", fontSize: 12, fontWeight: 600, color: TEXT, marginTop: 2, textAlign: "center" }}>
+          {row.group}
+        </div>
+        <div style={{ fontFamily: "Inter", fontSize: 10.5, color: SUBTEXT }}>
+          n = {row.__respondents}
+        </div>
+      </div>
+    );
+  };
+
   const MiniChart = ({ title, rows }) => (
-    <div style={{ flex: "1 1 300px", minWidth: 260 }}>
+    <div style={{ flex: "1 1 260px", minWidth: 240 }}>
       <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
         {title}
       </div>
-      <div style={{ width: "100%", height: Math.max(140, rows.length * 64) }}>
-        <ResponsiveContainer>
-          <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 20 }} barCategoryGap="35%">
-            <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
-            <XAxis type="number" allowDecimals={false} tick={{ fill: TEXT, fontSize: 11, fontFamily: "Inter" }} stroke={LINE} />
-            <YAxis type="category" dataKey="group" width={95} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
-            <Tooltip
-              contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }}
-              labelStyle={{ color: TEXT, fontWeight: 600, marginBottom: 4 }}
-              itemStyle={{ color: TEXT }}
-              cursor={{ fill: "rgba(125,46,55,0.08)" }}
-            />
-            <Legend wrapperStyle={{ fontFamily: "Inter", fontSize: 11, color: TEXT }} />
-            {options.map((opt, i) => (
-              <Bar key={opt} dataKey={opt} name={opt} fill={colorForOptionIndex(i)} stackId="demo" maxBarSize={28} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        {rows.map(row => <SinglePie key={row.group} row={row} />)}
       </div>
+    </div>
+  );
+
+  const SharedLegend = () => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", marginTop: 18, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
+      {options.map((opt, i) => (
+        <div key={opt} style={{ display: "flex", alignItems: "center", gap: 7, maxWidth: 320 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: colorForOptionIndex(i), flexShrink: 0 }} />
+          <span style={{ fontFamily: "Inter", fontSize: 12, color: TEXT }}>{opt}</span>
+        </div>
+      ))}
     </div>
   );
 
@@ -1242,10 +1280,13 @@ function DemographicBreakdown({ question, responses, survey }) {
         Breakdown by demographic
       </div>
       {(ageRows.length > 0 || genderRows.length > 0) ? (
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          {ageRows.length > 0 && <MiniChart title="Age range" rows={ageRows} />}
-          {genderRows.length > 0 && <MiniChart title="Gender" rows={genderRows} />}
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {ageRows.length > 0 && <MiniChart title="Age range" rows={ageRows} />}
+            {genderRows.length > 0 && <MiniChart title="Gender" rows={genderRows} />}
+          </div>
+          <SharedLegend />
+        </>
       ) : (
         <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic" }}>
           Not enough responses with age or gender data yet.
