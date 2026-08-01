@@ -30,7 +30,7 @@ function GlobalStyles() {
       @keyframes qFadeSlide { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes viewFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 65% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(212,162,76,0.25); } 100% { box-shadow: 0 0 0 8px rgba(212,162,76,0); } }
+      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(92,38,43,0.25); } 100% { box-shadow: 0 0 0 8px rgba(92,38,43,0); } }
       @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
       .shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
@@ -52,13 +52,13 @@ function GlobalStyles() {
   );
 }
 
-const ACCENT = "#C29B7C";
-const ACCENT_DIM = "#8C7259";
-const BG = "#26241F";
-const PANEL = "#302D28";
-const LINE = "#3F3B33";
-const TEXT = "#EDEBE4";
-const SUBTEXT = "#A8A296";
+const ACCENT = "#5C262B";
+const ACCENT_DIM = "#8B4048";
+const BG = "#B7A993";
+const PANEL = "#C2B49D";
+const LINE = "#A89678";
+const TEXT = "#3A2E28";
+const SUBTEXT = "#6B5E4F";
 
 function Logo({ size = 20, color = ACCENT }) {
   return (
@@ -295,7 +295,7 @@ function Button({ children, onClick, primary, disabled, style, className = "" })
       color: primary ? BG : TEXT, opacity: disabled ? 0.6 : 1,
       display: "inline-flex", alignItems: "center", gap: 6,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
-      boxShadow: primary && !disabled ? "0 2px 10px rgba(212,162,76,0.25)" : "none",
+      boxShadow: primary && !disabled ? "0 2px 10px rgba(92,38,43,0.25)" : "none",
       ...style,
     }}>
       {children}
@@ -363,7 +363,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
             <div key={label} onClick={() => set(i + 1)} style={{
               flex: 1, textAlign: "center", cursor: "pointer", padding: "14px 4px",
               borderRadius: 6, border: `1px solid ${value === i + 1 ? ACCENT : LINE}`,
-              background: value === i + 1 ? "rgba(212,162,76,0.12)" : "transparent",
+              background: value === i + 1 ? "rgba(92,38,43,0.12)" : "transparent",
             }}>
               <div style={{ fontFamily: "Bebas Neue", fontSize: 22, color: value === i + 1 ? ACCENT : TEXT }}>{i + 1}</div>
               <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, marginTop: 2 }}>{label}</div>
@@ -485,7 +485,7 @@ function OptionPill({ label, selected, onClick }) {
       flex: 1, textAlign: "center", padding: "17px 0", borderRadius: 8, cursor: "pointer",
       fontFamily: "Inter", fontWeight: 600, fontSize: 15,
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(212,162,76,0.14)" : "transparent",
+      background: selected ? "rgba(92,38,43,0.14)" : "transparent",
       color: selected ? ACCENT : TEXT,
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
@@ -499,7 +499,7 @@ function OptionRow({ label, selected, onClick, checkbox }) {
     <div onClick={onClick} className="tap-target opt-hover" style={{
       display: "flex", alignItems: "center", gap: 10, padding: "14px 14px", borderRadius: 8, cursor: "pointer",
       border: `1.5px solid ${selected ? ACCENT : LINE}`,
-      background: selected ? "rgba(212,162,76,0.10)" : "transparent",
+      background: selected ? "rgba(92,38,43,0.10)" : "transparent",
       WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
       <div className="tap-target" style={{
@@ -941,32 +941,47 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
             <Logo size={20} /> {view === "results" ? resultsSurvey.title : survey.title}
           </div>
-          {view !== "gate" && view !== "results" && (
-            <button
-              onClick={() => setView("gate")}
-              className="tap-target"
-              style={{
-                background: "none", border: "none", cursor: "pointer", padding: 0,
-                fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
-                textDecoration: "underline",
-              }}
-            >
-              results
-            </button>
-          )}
-          {view === "results" && (
-            <button
-              onClick={() => setResultsSurveyKey(k => (k === "v2" ? "v1" : "v2"))}
-              className="tap-target"
-              style={{
-                background: "none", border: "none", cursor: "pointer", padding: 0,
-                fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
-                textDecoration: "underline",
-              }}
-            >
-              {resultsSurveyKey === "v2" ? "view archived survey results" : "back to AR survey results"}
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {view !== "survey" && (
+              <button
+                onClick={() => setView("survey")}
+                className="tap-target"
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  textDecoration: "underline",
+                }}
+              >
+                take the survey
+              </button>
+            )}
+            {view !== "gate" && view !== "results" && (
+              <button
+                onClick={() => setView("gate")}
+                className="tap-target"
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  textDecoration: "underline",
+                }}
+              >
+                results
+              </button>
+            )}
+            {view === "results" && (
+              <button
+                onClick={() => setResultsSurveyKey(k => (k === "v2" ? "v1" : "v2"))}
+                className="tap-target"
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  textDecoration: "underline",
+                }}
+              >
+                {resultsSurveyKey === "v2" ? "view archived survey results" : "back to AR survey results"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
