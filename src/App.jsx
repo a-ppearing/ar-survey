@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3, Sun, Moon, FlaskConical, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
@@ -534,7 +534,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange, com
   );
 }
 
-function InterstitialScreen({ question, onContinue }) {
+function InterstitialScreen({ question, onContinue, onBack, showBack }) {
   return (
     <div style={{ textAlign: "center", padding: "40px 0" }}>
       <CheckCircle2 size={30} color={ACCENT} />
@@ -544,27 +544,79 @@ function InterstitialScreen({ question, onContinue }) {
       <p style={{ fontFamily: "Inter", fontSize: 14, color: SUBTEXT, marginBottom: 26 }}>
         {question.subtitle}
       </p>
-      <Button primary onClick={onContinue}>Continue <ChevronRight size={16} /></Button>
+      <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+        {showBack && (
+          <Button onClick={onBack}><ChevronLeft size={16} /> Back</Button>
+        )}
+        <Button primary onClick={onContinue}>Continue <ChevronRight size={16} /></Button>
+      </div>
     </div>
   );
 }
 
 function RankPicker({ options, value, onChange }) {
   const order = value && value.length === options.length ? value : options;
+  const itemRefs = useRef({});
+  const pendingFirstRects = useRef(null);
+
+  const captureRects = () => {
+    const rects = {};
+    order.forEach(opt => {
+      const el = itemRefs.current[opt];
+      if (el) rects[opt] = el.getBoundingClientRect().top;
+    });
+    return rects;
+  };
+
   const move = (idx, dir) => {
     const next = [...order];
     const swap = idx + dir;
     if (swap < 0 || swap >= next.length) return;
+    // Record each row's position before the reorder so we can animate from
+    // "where it was" to "where it lands" (FLIP), instead of it snapping.
+    pendingFirstRects.current = captureRects();
     [next[idx], next[swap]] = [next[swap], next[idx]];
     onChange(next);
   };
+
+  // After the reorder has actually re-rendered the rows in their new spots,
+  // slide each row back from its old position into place with a slow,
+  // clearly-visible glide so it reads as "moving", not "jumping".
+  useLayoutEffect(() => {
+    const first = pendingFirstRects.current;
+    if (!first) return;
+    pendingFirstRects.current = null;
+    order.forEach(opt => {
+      const el = itemRefs.current[opt];
+      const fromTop = first[opt];
+      if (!el || fromTop === undefined) return;
+      const toTop = el.getBoundingClientRect().top;
+      const delta = fromTop - toTop;
+      if (Math.abs(delta) < 1) return;
+      el.style.transition = "none";
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect(); // force reflow so the jump above applies instantly
+      requestAnimationFrame(() => {
+        el.style.transition = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transform = "translateY(0)";
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.join("|")]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {order.map((opt, i) => (
-        <div key={opt} className="tap-target" style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 14px", borderRadius: 8, background: PANEL_2, border: `1px solid ${LINE}`,
-        }}>
+        <div
+          key={opt}
+          ref={el => { if (el) itemRefs.current[opt] = el; }}
+          className="tap-target"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 14px", borderRadius: 8, background: PANEL_2, border: `1px solid ${LINE}`,
+            position: "relative", zIndex: 1,
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontFamily: "Bebas Neue", fontSize: 20, color: ACCENT, width: 22 }}>{i + 1}</span>
             <span style={{ fontFamily: "Inter", fontSize: 15, color: TEXT }}>{opt}</span>
@@ -769,7 +821,7 @@ function Survey({ survey, onDone, isTest }) {
           padding: isInterstitialPage ? "8px 20px" : "24px 20px",
         }}>
           {isInterstitialPage ? (
-            <InterstitialScreen question={page[0]} onContinue={next} />
+            <InterstitialScreen question={page[0]} onContinue={next} onBack={back} showBack={step > 0} />
           ) : (
             page.map((fq, idx) => (
               <div key={fq.id}>
