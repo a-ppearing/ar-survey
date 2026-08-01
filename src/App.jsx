@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3, Sun, Moon, FlaskConical, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -1125,53 +1125,62 @@ function formatAnswerValue(question, value) {
   return String(value);
 }
 
-// Converts an answer to a single comparable number so we can average it
-// across a demographic group (age range / gender).
-// - yesno: Yes = 1, No = 0
-// - scale / number: the value itself
-// - select: position of the chosen option in its options list (1 = first option)
-// - multi: how many options that respondent selected
-// Rank, dualtext, and free-text questions have no single meaningful number,
-// so those fall back to a plain note instead of a chart.
-function toNumericScore(question, value) {
-  if (value === undefined || value === null || value === "") return null;
-  if (question.type === "yesno") {
-    if (value === "Yes") return 1;
-    if (value === "No") return 0;
-    return null;
-  }
-  if (question.type === "scale" || question.type === "number") {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : null;
-  }
-  if (question.type === "select" && Array.isArray(question.options)) {
-    const idx = question.options.indexOf(value);
-    return idx === -1 ? null : idx + 1;
-  }
-  if (question.type === "multi") {
-    return Array.isArray(value) ? value.length : null;
-  }
+// Returns the fixed list of answer options for a question, in display order,
+// or null if the question type doesn't have discrete options (number, rank,
+// dualtext, free text) — those get a fallback note instead of a chart.
+function optionsForQuestion(question) {
+  if (question.type === "yesno") return ["Yes", "No"];
+  if (question.type === "select") return question.options;
+  if (question.type === "scale") return question.labels;
+  if (question.type === "multi") return question.options;
   return null;
 }
 
-// One-line explanation of what "avg" means for this question type, shown
-// under the mini charts so a position number or selection count isn't
-// mistaken for a scale rating.
-function demographicAvgNote(question) {
-  if (question.type === "select") {
-    return `Avg = position among the answer choices (1 = "${question.options[0]}", ${question.options.length} = "${question.options[question.options.length - 1]}").`;
-  }
-  if (question.type === "multi") {
-    return "Avg = average number of options selected.";
-  }
-  return null;
+// A small warm palette, cycled if a question has more options than colors —
+// keeps every bar distinguishable without introducing off-theme hues.
+const OPTION_PALETTE = ["#7D2E37", "#C08A6B", "#4C1B22", "#B5525F", "#8C6E4E", "#5C3A3F", "#D9A441", "#6E4B3A"];
+function colorForOptionIndex(i) {
+  return OPTION_PALETTE[i % OPTION_PALETTE.length];
 }
 
-// Small side chart: average numeric response to this question, broken down
-// by age range and by gender, so the two can be scanned next to the main
-// results chart for the same question. Shown for every question — where the
-// answer type has no meaningful single number (rank, dualtext, free text),
-// a short note is shown instead of a chart.
+// For a given demographic field (respondentAge / respondentGender), counts
+// how many people in each group chose each answer option — e.g. within
+// "18–24": Yes = 5, No = 3, Sometimes = 2. Multi-select questions count
+// every option a person picked (so a group's counts can add up to more than
+// its number of respondents).
+function groupOptionCounts(question, responses, groupField, groupOrder, options) {
+  const buckets = {}; // group -> { option: count }
+  responses.forEach(r => {
+    const groupVal = r.answers[groupField];
+    const value = r.answers[question.id];
+    if (groupVal === undefined || groupVal === null || groupVal === "") return;
+    if (value === undefined || value === null || value === "") return;
+    if (!buckets[groupVal]) buckets[groupVal] = {};
+    if (question.type === "multi") {
+      (Array.isArray(value) ? value : []).forEach(opt => {
+        buckets[groupVal][opt] = (buckets[groupVal][opt] || 0) + 1;
+      });
+    } else {
+      const label = question.type === "scale" ? question.labels[Number(value) - 1] : value;
+      if (label === undefined) return;
+      buckets[groupVal][label] = (buckets[groupVal][label] || 0) + 1;
+    }
+  });
+
+  let groupNames = Object.keys(buckets);
+  if (groupOrder) groupNames.sort((a, b) => groupOrder.indexOf(a) - groupOrder.indexOf(b));
+
+  return groupNames.map(g => {
+    const row = { group: g, __respondents: 0 };
+    options.forEach(opt => { row[opt] = buckets[g][opt] || 0; });
+    row.__respondents = Object.values(buckets[g]).reduce((a, b) => a + b, 0);
+    return row;
+  });
+}
+
+// Side-by-side mini charts: for this question, how many people picked each
+// answer option, broken down by age range and by gender — e.g. within
+// "25–34": Yes = 5, No = 3, Sometimes = 2 — shown as grouped bars per group.
 function DemographicBreakdown({ question, responses, survey }) {
   const ageQuestion = survey.questions.find(q => q.id === "respondentAge");
   const genderQuestion = survey.questions.find(q => q.id === "respondentGender");
@@ -1179,80 +1188,66 @@ function DemographicBreakdown({ question, responses, survey }) {
 
   if ((!ageQuestion && !genderQuestion) || isDemographicQuestion) return null;
 
-  const scoreable = ["yesno", "scale", "number", "select", "multi"].includes(question.type);
+  const options = optionsForQuestion(question);
 
-  const groupAverages = (groupField, groupOrder) => {
-    const buckets = {};
-    responses.forEach(r => {
-      const groupVal = r.answers[groupField];
-      const numeric = toNumericScore(question, r.answers[question.id]);
-      if (groupVal === undefined || groupVal === null || groupVal === "" || numeric === null) return;
-      if (!buckets[groupVal]) buckets[groupVal] = [];
-      buckets[groupVal].push(numeric);
-    });
-    const entries = Object.entries(buckets).map(([name, vals]) => ({
-      name,
-      avg: Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)),
-      n: vals.length,
-    }));
-    if (groupOrder) entries.sort((a, b) => groupOrder.indexOf(a.name) - groupOrder.indexOf(b.name));
-    return entries;
-  };
-
-  const ageData = scoreable && ageQuestion ? groupAverages("respondentAge", ageQuestion.options) : [];
-  const genderData = scoreable && genderQuestion ? groupAverages("respondentGender", genderQuestion.options) : [];
-  const note = demographicAvgNote(question);
-
-  const MiniChart = ({ title, data }) => (
-    <div style={{ flex: "1 1 260px", minWidth: 220 }}>
+  const MiniChart = ({ title, rows }) => (
+    <div style={{ flex: "1 1 300px", minWidth: 260 }}>
       <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
         {title}
       </div>
-      <div style={{ width: "100%", height: Math.max(80, data.length * 34) }}>
+      <div style={{ width: "100%", height: Math.max(110, rows.length * 56) }}>
         <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20 }}>
+          <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
-            <XAxis
-              type="number"
-              domain={question.type === "scale" ? [1, question.labels.length] : question.type === "yesno" ? [0, 1] : undefined}
-              tick={{ fill: TEXT, fontSize: 11, fontFamily: "Inter" }}
-              stroke={LINE}
-            />
-            <YAxis type="category" dataKey="name" width={95} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
+            <XAxis type="number" allowDecimals={false} tick={{ fill: TEXT, fontSize: 11, fontFamily: "Inter" }} stroke={LINE} />
+            <YAxis type="category" dataKey="group" width={95} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
             <Tooltip
               contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }}
               labelStyle={{ color: TEXT, fontWeight: 600, marginBottom: 4 }}
               itemStyle={{ color: TEXT }}
               cursor={{ fill: "rgba(125,46,55,0.08)" }}
-              formatter={(value, name, props) => [`avg ${value} (n=${props.payload.n})`, ""]}
             />
-            <Bar dataKey="avg" fill={ACCENT} radius={[0, 4, 4, 0]} />
+            <Legend wrapperStyle={{ fontFamily: "Inter", fontSize: 11, color: TEXT }} />
+            {options.map((opt, i) => (
+              <Bar key={opt} dataKey={opt} name={opt} fill={colorForOptionIndex(i)} radius={[0, 3, 3, 0]} />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 
+  if (!options) {
+    return (
+      <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
+        <div style={{ fontFamily: "Inter", fontSize: 11, color: TEXT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+          Breakdown by demographic
+        </div>
+        <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic" }}>
+          {question.type === "number"
+            ? "Open-ended numeric answers don't have fixed options to break down."
+            : "This question's answer type (ranking or free text) doesn't break down into fixed options."}
+        </div>
+      </div>
+    );
+  }
+
+  const ageRows = ageQuestion ? groupOptionCounts(question, responses, "respondentAge", ageQuestion.options, options) : [];
+  const genderRows = genderQuestion ? groupOptionCounts(question, responses, "respondentGender", genderQuestion.options, options) : [];
+
   return (
     <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
       <div style={{ fontFamily: "Inter", fontSize: 11, color: TEXT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
-        Average response by demographic
+        Breakdown by demographic
       </div>
-      {(ageData.length > 0 || genderData.length > 0) ? (
-        <>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-            {ageData.length > 0 && <MiniChart title="Age range" data={ageData} />}
-            {genderData.length > 0 && <MiniChart title="Gender" data={genderData} />}
-          </div>
-          {note && (
-            <div style={{ marginTop: 12, fontFamily: "Inter", fontSize: 12, color: TEXT, opacity: 0.85, lineHeight: 1.5 }}>
-              {note}
-            </div>
-          )}
-        </>
+      {(ageRows.length > 0 || genderRows.length > 0) ? (
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          {ageRows.length > 0 && <MiniChart title="Age range" rows={ageRows} />}
+          {genderRows.length > 0 && <MiniChart title="Gender" rows={genderRows} />}
+        </div>
       ) : (
         <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic" }}>
-          {scoreable ? "Not enough responses with age or gender data yet." : "This question's answer type (ranking or free text) doesn't reduce to a single average."}
+          Not enough responses with age or gender data yet.
         </div>
       )}
     </div>
