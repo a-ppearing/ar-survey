@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3 } from "lucide-react";
+import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3, Sun, Moon, FlaskConical, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const FONT_LINK_ID = "gym-survey-fonts";
@@ -48,18 +48,31 @@ function GlobalStyles() {
 
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-thumb { background: ${LINE}; border-radius: 8px; }
+
+      :root, :root[data-theme="dark"] {
+        --bg: #1A1614; --panel: #241E1A; --line: #3A322C; --text: #EDE7E3; --subtext: #A89A92;
+        --error: #E08A82; --success: #5BAE72; --header-bg: rgba(38,36,31,0.85);
+      }
+      :root[data-theme="light"] {
+        --bg: #F7F3EF; --panel: #FFFFFF; --line: #E1D8CF; --text: #241B16; --subtext: #786A60;
+        --error: #B23A30; --success: #2F8F4E; --header-bg: rgba(247,243,239,0.85);
+      }
+      html, body { background: var(--bg); transition: background-color 0.25s ease; }
+      body, body * { transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease; }
     `}</style>
   );
 }
 
 const ACCENT = "#8A3C44";
 const ACCENT_DIM = "#5C2A30";
-const BG = "#1A1614";
-const PANEL = "#241E1A";
-const LINE = "#3A322C";
-const TEXT = "#EDE7E3";
-const SUBTEXT = "#A89A92";
+const BG = "var(--bg)";
+const PANEL = "var(--panel)";
+const LINE = "var(--line)";
+const TEXT = "var(--text)";
+const SUBTEXT = "var(--subtext)";
 const ON_ACCENT = "#F2E9E7";
+const ERROR = "var(--error)";
+const SUCCESS = "var(--success)";
 
 function Logo({ size = 20, color = ACCENT }) {
   return (
@@ -69,6 +82,25 @@ function Logo({ size = 20, color = ACCENT }) {
       <line x1="30" y1="10" x2="16" y2="24" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
       <circle cx="30" cy="10" r="2.4" fill={color} />
     </svg>
+  );
+}
+
+function ThemeToggle({ theme, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="tap-target"
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        width: 34, height: 34, flexShrink: 0, borderRadius: 8, border: `1px solid ${LINE}`,
+        background: "transparent", color: TEXT, cursor: "pointer",
+        WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+      }}
+    >
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
   );
 }
 
@@ -120,6 +152,13 @@ const CONDITIONAL_V1 = { issueTypes: (a) => a.hasFitIssues === "Yes" };
 // V2 — Fit & Expression follow-up survey
 // ---------------------------------------------------------------------
 const QUESTIONS_V2 = [
+  {
+    id: "respondentInitials", type: "shorttext",
+    text: "To start, please enter your initials.",
+    note: "We ask for this so we can tell which answers belong to the same person — it makes the results more reliable. Initials aren't shown individually in public results or linked to your identity.",
+    placeholder: "e.g. JS",
+    maxLength: 4,
+  },
   {
     id: "prefaceFit", type: "interstitial",
     title: "Before you begin",
@@ -212,6 +251,30 @@ const QUESTIONS_V2 = [
     detailLabel: "Anything else? (optional)",
     detailPlaceholder: "Tell us more…",
     detailVisibleIf: (arr) => Array.isArray(arr) && arr.includes("Other"),
+  },
+  {
+    id: "sectionBreakDemo", type: "interstitial",
+    title: "Last thing",
+    subtitle: "A few closing questions about your training and background. These are only collected to see whether answers differ across groups, and are not used for any other purpose.",
+  },
+  {
+    id: "gymRegular", type: "yesno", page: "demographics",
+    text: "Do you regularly go to the gym?",
+    detailLabel: "How long have you been attending?",
+    detailPlaceholder: "e.g. 6 months, 2 years",
+    detailVisibleIf: (v) => v === "Yes",
+    detailAutoOpen: true,
+    requireDetailIf: (v) => v === "Yes",
+  },
+  {
+    id: "respondentAge", type: "select", page: "demographics",
+    text: "Which age range do you fall into?",
+    options: ["Under 18", "18–24", "25–34", "35–44", "45–54", "55+"],
+  },
+  {
+    id: "respondentGender", type: "select", page: "demographics",
+    text: "Which gender do you identify as?",
+    options: ["Male", "Female", "Non-binary", "Prefer not to say"],
   },
 ];
 const CONDITIONAL_V2 = {};
@@ -309,9 +372,10 @@ function Button({ children, onClick, primary, disabled, style, className = "" })
   );
 }
 
-function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
+function QuestionScreen({ question, value, onChange, detail, onDetailChange, compact }) {
   const set = (v) => onChange(question.id, v);
   const detailShouldShow = !question.detailVisibleIf || question.detailVisibleIf(value);
+  const detailIsRequired = !!(question.requireDetailIf && question.requireDetailIf(value));
   const [detailOpen, setDetailOpen] = useState(!!detail || !!question.detailAutoOpen);
   useEffect(() => {
     if (question.detailAutoOpen && question.detailVisibleIf && question.detailVisibleIf(value)) {
@@ -320,11 +384,16 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 22 }}>
-        <h2 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 22, lineHeight: 1.35, color: TEXT, margin: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: compact ? 6 : 22 }}>
+        <h2 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: compact ? 17 : 22, lineHeight: 1.35, color: TEXT, margin: 0 }}>
           {question.text}
         </h2>
       </div>
+      {question.type === "multi" && !question.optional && (
+        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14 }}>
+          Multiple choice — select at least 1.
+        </div>
+      )}
       {question.isNew && <div style={{ marginBottom: 18 }}><NewBadge /></div>}
 
       {question.type === "yesno" && (
@@ -354,6 +423,15 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
             );
           })}
         </div>
+      )}
+
+      {question.type === "shorttext" && (
+        <input type="text" value={value || ""}
+          onChange={e => set(e.target.value)}
+          maxLength={question.maxLength || undefined}
+          autoCapitalize="characters"
+          placeholder={question.placeholder || ""}
+          style={{ ...inputStyle, textAlign: "center", textTransform: "uppercase", letterSpacing: "0.08em" }} />
       )}
 
       {question.type === "number" && (
@@ -405,6 +483,15 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
         </div>
       )}
 
+      {question.note && (
+        <div style={{
+          marginTop: 14, fontFamily: "Inter", fontSize: 12.5, color: SUBTEXT, lineHeight: 1.5,
+          background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px",
+        }}>
+          {question.note}
+        </div>
+      )}
+
       {(!question.detailVisibleIf || detailShouldShow) && (
         <div style={{ marginTop: 20 }}>
           {!detailOpen ? (
@@ -418,13 +505,14 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
             <div>
               <label style={{ display: "block", fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 6 }}>
                 {question.detailLabel || "Anything you want to add about this one? (optional)"}
+                {detailIsRequired && <span style={{ color: ACCENT }}> *required</span>}
               </label>
               <textarea
                 value={detail || ""}
                 onChange={e => onDetailChange(question.id, e.target.value)}
                 placeholder={question.detailPlaceholder || "e.g. specific brand, exact spot it fits wrong, when it happens…"}
                 rows={3}
-                style={{ ...inputStyle, resize: "vertical", fontFamily: "Inter" }}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "Inter", borderColor: detailIsRequired && !(detail && detail.trim()) ? ACCENT_DIM : LINE }}
               />
             </div>
           )}
@@ -532,38 +620,108 @@ function isAnswered(q, value) {
   if (q.type === "interstitial") return true;
   if (q.type === "multi") return Array.isArray(value) && value.length > 0;
   if (q.type === "number") return value !== undefined && value !== "" && value !== null;
+  if (q.type === "shorttext") return typeof value === "string" && value.trim().length > 0;
   if (q.type === "dualtext") return true; // dualtext questions are treated as optional by default
   return value !== undefined && value !== null && value !== "";
 }
 
-function Survey({ survey, onDone }) {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [details, setDetails] = useState({});
+// A field counts as complete once its main answer is given, and — if it has
+// a conditionally-required detail box (e.g. "how long?" after a Yes) — once
+// that detail is filled in too.
+function isFieldComplete(q, value, detail) {
+  if (!isAnswered(q, value)) return false;
+  if (q.requireDetailIf && q.requireDetailIf(value)) {
+    return !!(detail && detail.trim());
+  }
+  return true;
+}
+
+// Groups consecutive questions that share the same `page` key onto a single
+// screen, so e.g. age + gender can be answered together before moving on.
+function buildPages(qs) {
+  const pages = [];
+  let i = 0;
+  while (i < qs.length) {
+    const q = qs[i];
+    if (q.page) {
+      const group = [q];
+      let j = i + 1;
+      while (j < qs.length && qs[j].page === q.page) {
+        group.push(qs[j]);
+        j++;
+      }
+      pages.push(group);
+      i = j;
+    } else {
+      pages.push([q]);
+      i++;
+    }
+  }
+  return pages;
+}
+
+// Test-mode answers are kept in sessionStorage (not localStorage) so they
+// survive backgrounding/returning to the tab within the same browsing
+// session, but never linger indefinitely or leak into a fresh session.
+function testProgressKey(surveyKey) {
+  return `testProgress_${surveyKey}`;
+}
+function loadTestProgress(surveyKey) {
+  try {
+    const raw = sessionStorage.getItem(testProgressKey(surveyKey));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function saveTestProgress(surveyKey, data) {
+  try { sessionStorage.setItem(testProgressKey(surveyKey), JSON.stringify(data)); } catch (e) {}
+}
+function clearTestProgress(surveyKey) {
+  try { sessionStorage.removeItem(testProgressKey(surveyKey)); } catch (e) {}
+}
+
+function Survey({ survey, onDone, isTest }) {
+  const saved = isTest ? loadTestProgress(survey.key) : null;
+  const [step, setStep] = useState(saved?.step ?? 0);
+  const [answers, setAnswers] = useState(saved?.answers ?? {});
+  const [details, setDetails] = useState(saved?.details ?? {});
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const qs = visibleQuestions(answers, survey.questions, survey.conditional);
-  const q = qs[step];
-  const realQuestionCount = qs.filter(x => x.type !== "interstitial").length;
-  const realQuestionIndex = qs.slice(0, step + 1).filter(x => x.type !== "interstitial").length;
+  const pages = buildPages(qs);
+  const page = pages[step] || [];
+  const isInterstitialPage = page.length === 1 && page[0].type === "interstitial";
+  const realPageCount = pages.filter(p => !(p.length === 1 && p[0].type === "interstitial")).length;
+  const realPageIndex = pages.slice(0, step + 1).filter(p => !(p.length === 1 && p[0].type === "interstitial")).length;
+  const pageComplete = page.every(fq => isFieldComplete(fq, answers[fq.id], details[fq.id]));
+
+  // Keep test-mode progress saved as it changes, so leaving the tab (or the
+  // app view) and coming back resumes exactly where it left off.
+  useEffect(() => {
+    if (isTest) saveTestProgress(survey.key, { step, answers, details });
+  }, [isTest, survey.key, step, answers, details]);
 
   const setAnswer = (id, val) => setAnswers(a => ({ ...a, [id]: val }));
   const setDetail = (id, val) => setDetails(d => ({ ...d, [id]: val }));
 
   const next = async () => {
-    if (step < qs.length - 1) {
+    if (step < pages.length - 1) {
       setStep(step + 1);
+    } else if (isTest) {
+      // Test mode never writes to the database — nothing to save, so just
+      // clear the saved test progress and finish.
+      clearTestProgress(survey.key);
+      onDone(null);
     } else {
       setSaving(true);
       setSubmitError(null);
       try {
         const cleanDetails = Object.fromEntries(Object.entries(details).filter(([, v]) => v && v.trim()));
-        const { error } = await supabase.from(survey.table).insert({
+        const { data, error } = await supabase.from(survey.table).insert({
           answers,
           details: cleanDetails,
-        });
+        }).select().single();
         if (error) throw error;
-        onDone();
+        onDone(data ? data.id : null);
       } catch (e) {
         console.error("Storage error", e);
         setSubmitError("Couldn't save your answers — check your connection and try again.");
@@ -578,30 +736,45 @@ function Survey({ survey, onDone }) {
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <div style={{ flex: 1, maxWidth: 560, width: "100%", margin: "0 auto", padding: "28px 20px 110px" }}>
-        <ProgressPlates current={step} total={qs.length} />
-        {q.type !== "interstitial" && (
-          <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14, letterSpacing: "0.04em" }}>
-            QUESTION {realQuestionIndex} OF {realQuestionCount}
+        {isTest && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
+            background: "rgba(138,60,68,0.14)", border: `1px solid ${ACCENT_DIM}`, borderRadius: 8,
+            padding: "10px 14px", fontFamily: "Inter", fontSize: 12.5, color: TEXT,
+          }}>
+            <FlaskConical size={15} color={ACCENT} style={{ flexShrink: 0 }} />
+            Test mode — these answers won't be saved or counted in the results.
           </div>
         )}
-        <div key={q.id} className="q-anim" style={{
+        <ProgressPlates current={step} total={pages.length} />
+        {!isInterstitialPage && (
+          <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14, letterSpacing: "0.04em" }}>
+            QUESTION {realPageIndex} OF {realPageCount}
+          </div>
+        )}
+        <div key={page.map(fq => fq.id).join("-")} className="q-anim" style={{
           background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14,
-          padding: q.type === "interstitial" ? "8px 20px" : "24px 20px",
+          padding: isInterstitialPage ? "8px 20px" : "24px 20px",
         }}>
-          {q.type === "interstitial" ? (
-            <InterstitialScreen question={q} onContinue={next} />
+          {isInterstitialPage ? (
+            <InterstitialScreen question={page[0]} onContinue={next} />
           ) : (
-            <QuestionScreen question={q} value={answers[q.id]} onChange={setAnswer}
-              detail={details[q.id]} onDetailChange={setDetail} />
+            page.map((fq, idx) => (
+              <div key={fq.id}>
+                {idx > 0 && <div style={{ height: 1, background: LINE, margin: "26px 0" }} />}
+                <QuestionScreen question={fq} value={answers[fq.id]} onChange={setAnswer}
+                  detail={details[fq.id]} onDetailChange={setDetail} compact={page.length > 1} />
+              </div>
+            ))
           )}
         </div>
         {submitError && (
-          <div style={{ marginTop: 16, fontFamily: "Inter", fontSize: 13, color: "#E08A82" }}>
+          <div style={{ marginTop: 16, fontFamily: "Inter", fontSize: 13, color: ERROR }}>
             {submitError}
           </div>
         )}
       </div>
-      {q.type !== "interstitial" && (
+      {!isInterstitialPage && (
         <div style={{
           position: "fixed", left: 0, right: 0, bottom: 0,
           background: `linear-gradient(to top, ${BG} 55%, rgba(27,30,36,0))`,
@@ -615,8 +788,8 @@ function Survey({ survey, onDone }) {
             <Button onClick={back} style={{ visibility: step === 0 ? "hidden" : "visible" }}>
               <ChevronLeft size={16} /> Back
             </Button>
-            <Button primary disabled={!isAnswered(q, answers[q.id]) || saving} onClick={next}>
-              {saving ? "Saving…" : step === qs.length - 1 ? "Submit" : "Next"} <ChevronRight size={16} />
+            <Button primary disabled={!pageComplete || saving} onClick={next}>
+              {saving ? "Saving…" : step === pages.length - 1 ? "Submit" : "Next"} <ChevronRight size={16} />
             </Button>
           </div>
         </div>
@@ -625,7 +798,30 @@ function Survey({ survey, onDone }) {
   );
 }
 
-function ThankYou({ onViewResults }) {
+function ThankYou({ table, responseId, onViewResults }) {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const submitEmail = async () => {
+    if (!email.trim()) return;
+    setSending(true);
+    setErr(null);
+    try {
+      if (responseId) {
+        const { error } = await supabase.from(table).update({ contact_email: email.trim() }).eq("id", responseId);
+        if (error) throw error;
+      }
+      setSent(true);
+    } catch (e) {
+      console.error("Storage error", e);
+      setErr("Couldn't save that — check your connection and try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="view-fade" style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
       <span className="pop-in" style={{ display: "inline-flex" }}><Logo size={36} /></span>
@@ -633,8 +829,35 @@ function ThankYou({ onViewResults }) {
         LOGGED
       </h1>
       <p style={{ fontFamily: "Inter", color: SUBTEXT, fontSize: 15, lineHeight: 1.6 }}>
-        Thanks — your answers are in. If you want to fill it out again for someone else nearby, refresh the page.
+        Thanks — your answers are in. The questionnaire is finished either way; everything below is optional. If you want to fill it out again for someone else nearby, refresh the page.
       </p>
+
+      <div style={{ marginTop: 30, textAlign: "left", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "20px 20px" }}>
+        <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 14, color: TEXT, marginBottom: 4 }}>
+          Willing to take other questionnaires?
+        </div>
+        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14 }}>
+          Optional — leave your email if you'd be happy to be contacted about other surveys. This doesn't affect the answers you've just submitted.
+        </div>
+        {sent ? (
+          <div style={{ fontFamily: "Inter", fontSize: 13, color: ACCENT }}>Thanks — you're on the list.</div>
+        ) : (
+          <>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com" style={inputStyle}
+              onKeyDown={e => e.key === "Enter" && submitEmail()}
+            />
+            {err && <div style={{ marginTop: 8, fontFamily: "Inter", fontSize: 12, color: ERROR }}>{err}</div>}
+            <div style={{ marginTop: 12 }}>
+              <Button primary disabled={!email.trim() || sending} onClick={submitEmail} style={{ padding: "10px 20px", fontSize: 14 }}>
+                {sending ? "Saving…" : "Send"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
       <div style={{ marginTop: 26 }}>
         <button onClick={onViewResults} className="tap-target" style={{
           background: "none", border: "none", color: SUBTEXT, fontFamily: "Inter", fontSize: 12,
@@ -642,6 +865,23 @@ function ThankYou({ onViewResults }) {
         }}>
           Creator access
         </button>
+      </div>
+    </div>
+  );
+}
+
+function TestThankYou({ onBack }) {
+  return (
+    <div className="view-fade" style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <span className="pop-in" style={{ display: "inline-flex" }}><FlaskConical size={32} color={ACCENT} /></span>
+      <h1 style={{ fontFamily: "Bebas Neue", fontSize: 34, letterSpacing: "0.02em", color: TEXT, margin: "18px 0 8px" }}>
+        TEST COMPLETE
+      </h1>
+      <p style={{ fontFamily: "Inter", color: SUBTEXT, fontSize: 15, lineHeight: 1.6 }}>
+        Nothing was saved — that was just a test run-through of the questions. Real submissions and results aren't affected.
+      </p>
+      <div style={{ marginTop: 26 }}>
+        <Button primary onClick={onBack}>Back to results <ChevronRight size={16} /></Button>
       </div>
     </div>
   );
@@ -665,7 +905,7 @@ function PasscodeGate({ onUnlock }) {
       <input type="password" value={code} onChange={e => setCode(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()}
         className={error ? "shake" : ""}
-        placeholder="Passcode" style={{ ...inputStyle, textAlign: "center", borderColor: error ? "#C0524A" : LINE }} />
+        placeholder="Passcode" style={{ ...inputStyle, textAlign: "center", borderColor: error ? ERROR : LINE }} />
       <div style={{ marginTop: 16 }}>
         <Button primary onClick={submit}>Unlock</Button>
       </div>
@@ -797,9 +1037,72 @@ function DetailList({ question, responses }) {
   );
 }
 
-function ResultsView({ survey, responses, lastUpdated }) {
+function formatAnswerValue(question, value) {
+  if (value === undefined || value === null || value === "") return "—";
+  if (question.type === "multi") return Array.isArray(value) && value.length ? value.join(", ") : "—";
+  if (question.type === "rank") return Array.isArray(value) ? value.map((v, i) => `${i + 1}. ${v}`).join("  ·  ") : "—";
+  if (question.type === "dualtext") {
+    const parts = [value.a, value.b].filter(v => v && v.trim());
+    return parts.length ? parts.join("  /  ") : "—";
+  }
+  if (question.type === "scale") return question.labels ? question.labels[Number(value) - 1] || value : value;
+  return String(value);
+}
+
+function RespondentBreakdown({ survey, responses }) {
+  const [openIdx, setOpenIdx] = useState(null);
+  const hasInitials = survey.questions.some(q => q.id === "respondentInitials");
+  if (!hasInitials) return null;
+  const detailQuestions = survey.questions.filter(q => q.type !== "interstitial" && q.id !== "respondentInitials");
+
+  return (
+    <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
+      <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+        Responses by initials
+      </h3>
+      <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+        Tap a set of initials to see everything that respondent answered.
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {responses.map((r, i) => {
+          const initials = (r.answers.respondentInitials || "—").toString().toUpperCase();
+          const isOpen = openIdx === i;
+          return (
+            <button key={i} onClick={() => setOpenIdx(isOpen ? null : i)} className="tap-target" style={{
+              fontFamily: "Inter", fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8,
+              border: `1.5px solid ${isOpen ? ACCENT : LINE}`,
+              background: isOpen ? "rgba(138,60,68,0.14)" : "transparent",
+              color: isOpen ? ACCENT : TEXT, cursor: "pointer",
+              WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+            }}>
+              {initials}
+            </button>
+          );
+        })}
+      </div>
+
+      {openIdx !== null && responses[openIdx] && (
+        <div className="q-anim" style={{ marginTop: 16, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 18px" }}>
+          {detailQuestions.map(q => (
+            <div key={q.id} style={{
+              display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 0",
+              borderBottom: `1px solid ${LINE}`,
+            }}>
+              <span style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, maxWidth: "55%" }}>{q.text}</span>
+              <span style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, textAlign: "right" }}>
+                {formatAnswerValue(q, responses[openIdx].answers[q.id])}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
   const total = responses.length;
-  const questions = survey.questions.filter(q => q.type !== "interstitial");
+  const questions = survey.questions.filter(q => q.type !== "interstitial" && q.id !== "respondentInitials");
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "40px 20px 80px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
@@ -809,14 +1112,23 @@ function ResultsView({ survey, responses, lastUpdated }) {
             RESULTS — {survey.shortTitle.toUpperCase()}
           </h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "Inter", fontSize: 11, color: SUBTEXT }}>
-          <span style={{ width: 7, height: 7, borderRadius: 99, background: "#5BAE72", display: "inline-block", boxShadow: "0 0 0 3px rgba(91,174,114,0.2)" }} />
-          Live{lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, fontFamily: "Inter", fontSize: 11, color: SUBTEXT }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 7, height: 7, borderRadius: 99, background: SUCCESS, display: "inline-block", boxShadow: "0 0 0 3px rgba(91,174,114,0.2)" }} />
+            Live{lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ""}
+          </span>
+          {onStartTest && !survey.legacy && (
+            <Button onClick={onStartTest} style={{ padding: "7px 14px", fontSize: 12.5 }}>
+              <FlaskConical size={13} /> Test answers
+            </Button>
+          )}
         </div>
       </div>
       <p style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 30 }}>
         {total} total submission{total === 1 ? "" : "s"}, updating in real time. Questions marked <NewBadge /> have fewer responses since they were added later — read percentages on those with caution.
       </p>
+
+      <RespondentBreakdown survey={survey} responses={responses} />
 
       {survey.legacy && (
         <>
@@ -927,33 +1239,99 @@ function wantsResultsFromUrl() {
   }
 }
 
+// --- Theme persistence (survives reloads, via localStorage) ---------------
+const THEME_KEY = "gymSurveyTheme";
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
+  } catch (e) {}
+  return "dark";
+}
+
+// --- App-level view persistence --------------------------------------------
+// Keeps track of which screen (and which results tab / test mode) the person
+// was on, in sessionStorage, so switching away from the tab and coming back
+// — or an accidental reload — drops them back where they were instead of
+// resetting to the start.
+const APP_STATE_KEY = "gymSurveyAppState";
+function loadAppState() {
+  try {
+    const raw = sessionStorage.getItem(APP_STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function saveAppState(state) {
+  try { sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
 export default function App() {
   useFonts();
   const survey = SURVEYS.v2; // the questionnaire people fill out is always the current one
-  const [view, setView] = useState(() => (wantsResultsFromUrl() ? "gate" : "survey")); // survey | thanks | gate | results
+  const urlWantsResults = wantsResultsFromUrl();
+  // Only ever auto-resume into the test flow (never straight into "results",
+  // which stays behind the passcode gate on every fresh load/reload).
+  const restored = !urlWantsResults ? loadAppState() : null;
+  const resumeTest = restored && (restored.view === "testSurvey" || restored.view === "testThanks");
+
+  // view: survey | thanks | gate | results | testSurvey | testThanks
+  const [view, setView] = useState(() => (urlWantsResults ? "gate" : resumeTest ? restored.view : "survey"));
   const [resultsSurveyKey, setResultsSurveyKey] = useState("v2"); // which results are being viewed — v1 is results-only
+  const [preTestView, setPreTestView] = useState(resumeTest ? (restored.preTestView || "results") : "results"); // where "test answers" was launched from
+  const [lastResponseId, setLastResponseId] = useState(null);
+  const [theme, setTheme] = useState(getInitialTheme);
   const resultsSurvey = SURVEYS[resultsSurveyKey];
   const isResultsActive = view === "results";
   const { responses, error, lastUpdated } = useResponses(isResultsActive, resultsSurvey.table);
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {}
+  }, [theme]);
+
+  // Only persist/resume navigation state for the test flow: leaving the tab
+  // (or reloading) mid-test-run drops the person back into it; leaving test
+  // mode clears the saved state so normal navigation is never affected.
+  useEffect(() => {
+    if (view === "testSurvey" || view === "testThanks") {
+      saveAppState({ view, preTestView });
+    } else {
+      saveAppState(null);
+    }
+  }, [view, preTestView]);
+
+  const startTest = () => {
+    setPreTestView("results");
+    setView("testSurvey");
+  };
+  const exitTest = () => setView(preTestView);
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT }}>
       <GlobalStyles />
       <div style={{
         position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${LINE}`, padding: "16px 20px",
-        background: "rgba(38,36,31,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+        background: "var(--header-bg)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       }}>
         <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
-            <Logo size={20} /> {view === "results" ? resultsSurvey.title : survey.title}
+            <Logo size={20} />
+            {view === "results" ? resultsSurvey.title : view === "testSurvey" || view === "testThanks" ? `${survey.title} — TEST` : survey.title}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {view !== "survey" && (
+            {view === "testSurvey" || view === "testThanks" ? (
+              <Button onClick={exitTest} style={{ padding: "8px 16px", fontSize: 13 }}>
+                <X size={14} /> Exit test
+              </Button>
+            ) : view !== "survey" && (
               <Button onClick={() => setView("survey")} style={{ padding: "8px 16px", fontSize: 13 }}>
                 <ChevronLeft size={14} /> Back to survey
               </Button>
             )}
-            {view !== "gate" && view !== "results" && (
+            {view !== "gate" && view !== "results" && view !== "testSurvey" && view !== "testThanks" && (
               <button
                 onClick={() => setView("gate")}
                 className="tap-target"
@@ -979,20 +1357,23 @@ export default function App() {
                 {resultsSurveyKey === "v2" ? "view archived survey results" : "back to AR survey results"}
               </button>
             )}
+            <ThemeToggle theme={theme} onToggle={() => setTheme(t => (t === "dark" ? "light" : "dark"))} />
           </div>
         </div>
       </div>
 
       <div key={`${view}-${resultsSurveyKey}`} className="view-fade">
-        {view === "survey" && <Survey survey={survey} onDone={() => setView("thanks")} />}
-        {view === "thanks" && <ThankYou onViewResults={() => setView("gate")} />}
+        {view === "survey" && <Survey survey={survey} onDone={(id) => { setLastResponseId(id); setView("thanks"); }} />}
+        {view === "testSurvey" && <Survey survey={survey} isTest onDone={() => setView("testThanks")} />}
+        {view === "testThanks" && <TestThankYou onBack={exitTest} />}
+        {view === "thanks" && <ThankYou table={survey.table} responseId={lastResponseId} onViewResults={() => setView("gate")} />}
         {view === "gate" && <PasscodeGate onUnlock={() => setView("results")} />}
         {view === "results" && (
           responses === null
             ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: SUBTEXT }}>Loading responses…</div>
             : error
-              ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: "#C0524A" }}>{error}</div>
-              : <ResultsView survey={resultsSurvey} responses={responses} lastUpdated={lastUpdated} />
+              ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: ERROR }}>{error}</div>
+              : <ResultsView survey={resultsSurvey} responses={responses} lastUpdated={lastUpdated} onStartTest={startTest} />
         )}
       </div>
     </div>
