@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3, Dumbbell } from "lucide-react";
+import { Lock, ChevronRight, ChevronLeft, CheckCircle2, BarChart3 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const FONT_LINK_ID = "gym-survey-fonts";
@@ -52,13 +52,24 @@ function GlobalStyles() {
   );
 }
 
-const ACCENT = "#D4A24C";
-const ACCENT_DIM = "#9A7A3C";
-const BG = "#1B1E24";
-const PANEL = "#242830";
-const LINE = "#343A45";
+const ACCENT = "#C29B7C";
+const ACCENT_DIM = "#8C7259";
+const BG = "#26241F";
+const PANEL = "#302D28";
+const LINE = "#3F3B33";
 const TEXT = "#EDEBE4";
-const SUBTEXT = "#9CA3AF";
+const SUBTEXT = "#A8A296";
+
+function Logo({ size = 20, color = ACCENT }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <line x1="10" y1="10" x2="24" y2="24" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="10" cy="10" r="2.4" fill={color} />
+      <line x1="30" y1="10" x2="16" y2="24" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="30" cy="10" r="2.4" fill={color} />
+    </svg>
+  );
+}
 
 const QUESTIONS_V1 = [
   { id: "hasFitIssues", type: "yesno", text: "Have you experienced clothing fit issues since starting the gym — in gym wear or in everyday/casual clothes (fitting, stretchiness, etc.)?", isNew: false },
@@ -201,12 +212,8 @@ const CONDITIONAL_V2 = {};
 
 const SURVEYS = {
   v2: {
-    key: "v2", table: "expression_survey_responses", title: "FIT & EXPRESSION SURVEY",
-    shortTitle: "Fit & Expression", questions: QUESTIONS_V2, conditional: CONDITIONAL_V2, legacy: false,
-  },
-  v1: {
-    key: "v1", table: "survey_responses", title: "GYM FIT SURVEY",
-    shortTitle: "Original Gym Fit", questions: QUESTIONS_V1, conditional: CONDITIONAL_V1, legacy: true,
+    key: "v2", table: "expression_survey_responses", title: "AR SURVEY",
+    shortTitle: "AR Survey", questions: QUESTIONS_V2, conditional: CONDITIONAL_V2, legacy: false,
   },
 };
 
@@ -611,7 +618,7 @@ function Survey({ survey, onDone }) {
 function ThankYou({ onViewResults }) {
   return (
     <div className="view-fade" style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
-      <span className="pop-in" style={{ display: "inline-flex" }}><Dumbbell size={36} color={ACCENT} /></span>
+      <span className="pop-in" style={{ display: "inline-flex" }}><Logo size={36} /></span>
       <h1 style={{ fontFamily: "Bebas Neue", fontSize: 34, letterSpacing: "0.02em", color: TEXT, margin: "18px 0 8px" }}>
         LOGGED
       </h1>
@@ -910,55 +917,27 @@ function wantsResultsFromUrl() {
   }
 }
 
-function wantsV1FromUrl() {
-  try {
-    const { search, hash } = window.location;
-    return /v1/i.test(search) || /v1/i.test(hash);
-  } catch (e) {
-    return false;
-  }
-}
-
 export default function App() {
   useFonts();
-  const [surveyKey, setSurveyKey] = useState(() => (wantsV1FromUrl() ? "v1" : "v2"));
-  const survey = SURVEYS[surveyKey];
+  const survey = SURVEYS.v2;
   const [view, setView] = useState(() => (wantsResultsFromUrl() ? "gate" : "survey")); // survey | thanks | gate | results
   const isResultsActive = view === "results";
   const { responses, error, lastUpdated } = useResponses(isResultsActive, survey.table);
-
-  const switchSurvey = (key) => {
-    setSurveyKey(key);
-    setView(wantsResultsFromUrl() ? "gate" : "survey");
-  };
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT }}>
       <GlobalStyles />
       <div style={{
         position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${LINE}`, padding: "16px 20px",
-        background: "rgba(27,30,36,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+        background: "rgba(38,36,31,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       }}>
         <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
-            <Dumbbell size={18} color={ACCENT} /> {survey.title}
+            <Logo size={20} /> {survey.title}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {view !== "gate" && view !== "results" && (
-              <button
-                onClick={() => setView("gate")}
-                className="tap-target"
-                style={{
-                  background: "none", border: "none", cursor: "pointer", padding: 0,
-                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
-                  textDecoration: "underline",
-                }}
-              >
-                results
-              </button>
-            )}
+          {view !== "gate" && view !== "results" && (
             <button
-              onClick={() => switchSurvey(surveyKey === "v2" ? "v1" : "v2")}
+              onClick={() => setView("gate")}
               className="tap-target"
               style={{
                 background: "none", border: "none", cursor: "pointer", padding: 0,
@@ -966,13 +945,13 @@ export default function App() {
                 textDecoration: "underline",
               }}
             >
-              {surveyKey === "v2" ? "view original survey" : "back to fit & expression survey"}
+              results
             </button>
-          </div>
+          )}
         </div>
       </div>
 
-      <div key={`${surveyKey}-${view}`} className="view-fade">
+      <div key={view} className="view-fade">
         {view === "survey" && <Survey survey={survey} onDone={() => setView("thanks")} />}
         {view === "thanks" && <ThankYou onViewResults={() => setView("gate")} />}
         {view === "gate" && <PasscodeGate onUnlock={() => setView("results")} />}
