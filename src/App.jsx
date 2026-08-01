@@ -50,16 +50,18 @@ function GlobalStyles() {
       ::-webkit-scrollbar-thumb { background: ${LINE}; border-radius: 8px; }
 
       :root, :root[data-theme="dark"] {
-        --bg: #15110F; --panel: #1F1916; --line: #362D26; --text: #F2E7DA; --subtext: #AC9C8C;
+        --bg: #15110F; --panel: #241C18; --panel-2: #2E2521; --line: #3A2F27; --line-strong: #4E4038;
+        --text: #F1E6D9; --subtext: #AC9C8C; --text-faint: #7C6F62;
         --error: #D98D85; --success: #6FAE85; --success-glow: rgba(111,174,133,0.22);
         --header-bg: rgba(21,17,15,0.82); --panel-shadow: 0 8px 28px rgba(0,0,0,0.32);
         --ambient: radial-gradient(ellipse 900px 500px at 50% -8%, rgba(125,46,55,0.16), transparent 60%),
                    radial-gradient(ellipse 700px 500px at 100% 100%, rgba(125,46,55,0.06), transparent 60%);
       }
       :root[data-theme="light"] {
-        --bg: #FAF6EF; --panel: #FFFEFB; --line: #E8DECB; --text: #2B2119; --subtext: #8D7C68;
+        --bg: #EFE6D8; --panel: #F8F1E6; --panel-2: #EDE2D0; --line: #DCCDB0; --line-strong: #C7B594;
+        --text: #2A2015; --subtext: #7C6C57; --text-faint: #9C8C76;
         --error: #A63B33; --success: #327A4D; --success-glow: rgba(50,122,77,0.16);
-        --header-bg: rgba(250,246,239,0.82); --panel-shadow: 0 8px 28px rgba(75,55,35,0.08);
+        --header-bg: rgba(239,230,216,0.82); --panel-shadow: 0 8px 28px rgba(75,55,35,0.10);
         --ambient: radial-gradient(ellipse 900px 500px at 50% -8%, rgba(125,46,55,0.07), transparent 60%),
                    radial-gradient(ellipse 700px 500px at 100% 100%, rgba(125,46,55,0.04), transparent 60%);
       }
@@ -74,9 +76,12 @@ const ACCENT = "#7D2E37";
 const ACCENT_DIM = "#4C1B22";
 const BG = "var(--bg)";
 const PANEL = "var(--panel)";
+const PANEL_2 = "var(--panel-2)";
 const LINE = "var(--line)";
+const LINE_STRONG = "var(--line-strong)";
 const TEXT = "var(--text)";
 const SUBTEXT = "var(--subtext)";
+const TEXT_FAINT = "var(--text-faint)";
 const ON_ACCENT = "#F6ECDF";
 const ERROR = "var(--error)";
 const SUCCESS = "var(--success)";
@@ -493,7 +498,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange, com
       {question.note && (
         <div style={{
           marginTop: 14, fontFamily: "Inter", fontSize: 12.5, color: SUBTEXT, lineHeight: 1.5,
-          background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px",
+          background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px",
         }}>
           {question.note}
         </div>
@@ -558,7 +563,7 @@ function RankPicker({ options, value, onChange }) {
       {order.map((opt, i) => (
         <div key={opt} className="tap-target" style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 14px", borderRadius: 8, background: PANEL, border: `1px solid ${LINE}`,
+          padding: "12px 14px", borderRadius: 8, background: PANEL_2, border: `1px solid ${LINE}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontFamily: "Bebas Neue", fontSize: 20, color: ACCENT, width: 22 }}>{i + 1}</span>
@@ -618,7 +623,7 @@ function OptionRow({ label, selected, onClick, checkbox }) {
 
 const inputStyle = {
   width: "100%", padding: "14px 16px", borderRadius: 8, border: `1px solid ${LINE}`,
-  background: PANEL, color: TEXT, fontFamily: "Inter", fontSize: 16, outline: "none", boxSizing: "border-box",
+  background: PANEL_2, color: TEXT, fontFamily: "Inter", fontSize: 16, outline: "none", boxSizing: "border-box",
   transition: "border-color 0.18s ease, box-shadow 0.18s ease",
 };
 
@@ -768,7 +773,7 @@ function Survey({ survey, onDone, isTest }) {
           ) : (
             page.map((fq, idx) => (
               <div key={fq.id}>
-                {idx > 0 && <div style={{ height: 1, background: LINE, margin: "26px 0" }} />}
+                {idx > 0 && <div style={{ height: 1, background: LINE_STRONG, margin: "26px 0" }} />}
                 <QuestionScreen question={fq} value={answers[fq.id]} onChange={setAnswer}
                   detail={details[fq.id]} onDetailChange={setDetail} compact={page.length > 1} />
               </div>
@@ -1344,7 +1349,7 @@ export default function App() {
                 className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer", padding: 0,
-                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  fontFamily: "Inter", fontSize: 11, color: TEXT_FAINT,
                   textDecoration: "underline",
                 }}
               >
@@ -1357,7 +1362,7 @@ export default function App() {
                 className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer", padding: 0,
-                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  fontFamily: "Inter", fontSize: 11, color: TEXT_FAINT,
                   textDecoration: "underline",
                 }}
               >
