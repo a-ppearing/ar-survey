@@ -1136,9 +1136,10 @@ function optionsForQuestion(question) {
   return null;
 }
 
-// A small warm palette, cycled if a question has more options than colors —
-// keeps every bar distinguishable without introducing off-theme hues.
-const OPTION_PALETTE = ["#7D2E37", "#C08A6B", "#4C1B22", "#B5525F", "#8C6E4E", "#5C3A3F", "#D9A441", "#6E4B3A"];
+// A palette that stays warm/on-brand but spreads hue, saturation, and
+// lightness enough that adjacent segments (e.g. "Sometimes" vs "Often")
+// stay visually distinguishable, even as thin stacked-bar segments.
+const OPTION_PALETTE = ["#B5525F", "#D9A441", "#5FA8A0", "#7D2E37", "#8C6E4E", "#6E8FB5", "#C08A6B", "#4C1B22"];
 function colorForOptionIndex(i) {
   return OPTION_PALETTE[i % OPTION_PALETTE.length];
 }
@@ -1195,9 +1196,9 @@ function DemographicBreakdown({ question, responses, survey }) {
       <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
         {title}
       </div>
-      <div style={{ width: "100%", height: Math.max(110, rows.length * 56) }}>
+      <div style={{ width: "100%", height: Math.max(140, rows.length * 64) }}>
         <ResponsiveContainer>
-          <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 20 }}>
+          <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 20 }} barCategoryGap="35%">
             <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={{ fill: TEXT, fontSize: 11, fontFamily: "Inter" }} stroke={LINE} />
             <YAxis type="category" dataKey="group" width={95} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
@@ -1209,7 +1210,7 @@ function DemographicBreakdown({ question, responses, survey }) {
             />
             <Legend wrapperStyle={{ fontFamily: "Inter", fontSize: 11, color: TEXT }} />
             {options.map((opt, i) => (
-              <Bar key={opt} dataKey={opt} name={opt} fill={colorForOptionIndex(i)} radius={[0, 3, 3, 0]} />
+              <Bar key={opt} dataKey={opt} name={opt} fill={colorForOptionIndex(i)} stackId="demo" maxBarSize={28} />
             ))}
           </BarChart>
         </ResponsiveContainer>
