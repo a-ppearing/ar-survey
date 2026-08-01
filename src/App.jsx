@@ -16,6 +16,42 @@ function useFonts() {
   }, []);
 }
 
+function GlobalStyles() {
+  useEffect(() => {
+    // iOS Safari won't trigger :active on tap unless a touchstart listener exists somewhere.
+    document.addEventListener("touchstart", () => {}, { passive: true });
+  }, []);
+  return (
+    <style>{`
+      * { box-sizing: border-box; }
+      html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+      body { margin: 0; overscroll-behavior-y: none; }
+
+      @keyframes qFadeSlide { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes viewFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 65% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+      @keyframes cardPulse { 0% { box-shadow: 0 0 0 0 rgba(212,162,76,0.25); } 100% { box-shadow: 0 0 0 8px rgba(212,162,76,0); } }
+      @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+      .shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+      .q-anim { animation: qFadeSlide 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
+      .view-fade { animation: viewFade 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+      .pop-in { animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; }
+
+      .tap-target {
+        transition: transform 0.12s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+      }
+      .tap-target:active { transform: scale(0.96); }
+      @media (hover: hover) {
+        .opt-hover:hover { border-color: ${ACCENT_DIM}; }
+      }
+
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-thumb { background: ${LINE}; border-radius: 8px; }
+    `}</style>
+  );
+}
+
 const ACCENT = "#D4A24C";
 const ACCENT_DIM = "#9A7A3C";
 const BG = "#1B1E24";
@@ -24,7 +60,7 @@ const LINE = "#343A45";
 const TEXT = "#EDEBE4";
 const SUBTEXT = "#9CA3AF";
 
-const QUESTIONS = [
+const QUESTIONS_V1 = [
   { id: "hasFitIssues", type: "yesno", text: "Have you experienced clothing fit issues since starting the gym — in gym wear or in everyday/casual clothes (fitting, stretchiness, etc.)?", isNew: false },
   { id: "issueTypes", type: "multi", text: "Which of these have been issues for you? Select all that apply.", isNew: false,
     options: ["Breathability", "Restriction / not enough stretch", "Not fitting properly", "Ripping often", "Doesn't suit my build/shape", "Too big a jump between sizes (e.g. M to L)", "Need oversized shirts for chest size", "Uneven hip-to-thigh ratio in trousers", "Hard to find accessible sizes nearby", "Want a more tailored look", "Tight at the waist when cutting", "Polyester trade-off (sweat vs. cutting goals)", "Thighs too big for a good length"] },
@@ -66,7 +102,113 @@ const QUESTIONS = [
     options: ["Breathability", "Stretch", "Durability"] },
 ];
 
-const CONDITIONAL = { issueTypes: (a) => a.hasFitIssues === "Yes" };
+const CONDITIONAL_V1 = { issueTypes: (a) => a.hasFitIssues === "Yes" };
+
+// ---------------------------------------------------------------------
+// V2 — Fit & Expression follow-up survey
+// ---------------------------------------------------------------------
+const QUESTIONS_V2 = [
+  {
+    id: "thighWaistMismatch", type: "multi",
+    text: "Have you experienced either of these in trousers or joggers? Select all that apply.",
+    options: [
+      "Tight or restrictive around the thighs, even when the waist fits",
+      "Loose or baggy around the waist, even when adjusted for the thighs",
+      "Neither",
+    ],
+  },
+  {
+    id: "chestStomachMismatch", type: "multi",
+    text: "Have you experienced either of these in tops? Select all that apply.",
+    options: [
+      "Had to size up for chest or shoulders, resulting in bagginess around the stomach",
+      "Tops fit the stomach but are tight or restrictive across the chest or shoulders",
+      "Neither",
+    ],
+  },
+  {
+    id: "fitAffectsBuying2", type: "scale",
+    text: "How often do fit issues affect your choice of what to buy?",
+    labels: ["Never", "Rarely", "Sometimes", "Often", "Always"],
+  },
+  {
+    id: "consideredAltering", type: "select",
+    text: "Have you ever considered having clothing altered to fix a fit problem, whether or not you went through with it?",
+    options: ["Yes, and I did", "Yes, but I didn't", "No"],
+    detailLabel: "What was the issue?",
+    detailPlaceholder: "e.g. length, waist, chest",
+    detailVisibleIf: (v) => typeof v === "string" && v.startsWith("Yes"),
+    detailAutoOpen: true,
+  },
+  {
+    id: "brandNaming", type: "dualtext", optional: true,
+    text: "Which specific brands, if any, have you personally experienced fit issues with?",
+    subLabels: ["Casual wear", "Smart / dress wear"],
+  },
+  {
+    id: "poorFitLimitsStyle", type: "select",
+    text: "Has poor fit ever stopped you from wearing something in your own style?",
+    options: ["Yes", "No", "Sometimes"],
+  },
+  {
+    id: "priceLimitsFit", type: "select",
+    text: "Does price ever stop you from buying clothing that actually fits your build well?",
+    options: ["Yes", "No", "Sometimes"],
+  },
+  {
+    id: "sectionBreak1", type: "interstitial",
+    title: "Nice — you're halfway.",
+    subtitle: "Now for a few quick questions about style and expression.",
+  },
+  {
+    id: "lessExpressionNow", type: "select",
+    text: "Compared to older pieces you've seen or owned, do fashion brands (e.g. Zara, H&M) now feel like they offer less expression or identity in their clothing?",
+    options: ["Yes", "No", "Not sure"],
+  },
+  {
+    id: "expressionRanking", type: "rank",
+    text: "Rank the following from most to least important in making a piece of clothing feel expressive or stand out to you.",
+    options: [
+      "Bold or varied colour choices", "Minimalist tones", "Silhouette or cut", "Fabric texture",
+      "Detailing (stitching, trims, etc.)", "Versatility (works across multiple outfits)",
+      "Craftsmanship", "Pieces that work together",
+    ],
+  },
+  {
+    id: "marketLimitsExpression", type: "select",
+    text: "Do you feel the current clothing market limits your ability to express yourself through fashion?",
+    options: ["Yes", "No", "Sometimes", "Not sure"],
+  },
+  {
+    id: "priceLimitsStyle", type: "select",
+    text: "Does price ever stop you from buying clothing that best matches your personal style?",
+    options: ["Yes", "No", "Sometimes"],
+  },
+  {
+    id: "stylesWanted", type: "multi",
+    text: "What styles would you like to see more often in the current market? Select all that apply.",
+    options: [
+      "Vintage", "Old money / preppy", "Streetwear", "Minimalist", "Maximalist", "Workwear",
+      "Y2K", "Grunge / alternative", "Formalwear / tailoring", "Sportswear-inspired (athleisure)",
+      "Cottagecore / romantic", "Techwear", "Other",
+    ],
+    detailLabel: "Anything else? (optional)",
+    detailPlaceholder: "Tell us more…",
+    detailVisibleIf: (arr) => Array.isArray(arr) && arr.includes("Other"),
+  },
+];
+const CONDITIONAL_V2 = {};
+
+const SURVEYS = {
+  v2: {
+    key: "v2", table: "expression_survey_responses", title: "FIT & EXPRESSION SURVEY",
+    shortTitle: "Fit & Expression", questions: QUESTIONS_V2, conditional: CONDITIONAL_V2, legacy: false,
+  },
+  v1: {
+    key: "v1", table: "survey_responses", title: "GYM FIT SURVEY",
+    shortTitle: "Original Gym Fit", questions: QUESTIONS_V1, conditional: CONDITIONAL_V1, legacy: true,
+  },
+};
 
 // Free-text "time in gym" answers from early responses — kept as raw notes
 // since they weren't collected in the structured gymDuration buckets.
@@ -103,8 +245,8 @@ const LEGACY_ISSUE_NOTES = [
   "Thighs too big for good length, or too long",
 ];
 
-function visibleQuestions(answers) {
-  return QUESTIONS.filter(q => !CONDITIONAL[q.id] || CONDITIONAL[q.id](answers));
+function visibleQuestions(answers, questions, conditional) {
+  return questions.filter(q => !conditional[q.id] || conditional[q.id](answers));
 }
 
 function NewBadge() {
@@ -133,19 +275,18 @@ function ProgressPlates({ current, total }) {
   );
 }
 
-function Button({ children, onClick, primary, disabled, style }) {
+function Button({ children, onClick, primary, disabled, style, className = "" }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{
+    <button onClick={onClick} disabled={disabled} className={`tap-target ${className}`} style={{
       fontFamily: "Inter", fontWeight: 600, fontSize: 15, cursor: disabled ? "not-allowed" : "pointer",
-      padding: "12px 22px", borderRadius: 6, border: primary ? "none" : `1px solid ${LINE}`,
+      padding: "13px 24px", borderRadius: 8, border: primary ? "none" : `1px solid ${LINE}`,
       background: primary ? (disabled ? ACCENT_DIM : ACCENT) : "transparent",
       color: primary ? BG : TEXT, opacity: disabled ? 0.6 : 1,
       display: "inline-flex", alignItems: "center", gap: 6,
-      transition: "transform 0.1s ease", ...style,
-    }}
-      onMouseDown={e => !disabled && (e.currentTarget.style.transform = "scale(0.97)")}
-      onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
-    >
+      WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+      boxShadow: primary && !disabled ? "0 2px 10px rgba(212,162,76,0.25)" : "none",
+      ...style,
+    }}>
       {children}
     </button>
   );
@@ -153,7 +294,13 @@ function Button({ children, onClick, primary, disabled, style }) {
 
 function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
   const set = (v) => onChange(question.id, v);
-  const [detailOpen, setDetailOpen] = useState(!!detail);
+  const detailShouldShow = !question.detailVisibleIf || question.detailVisibleIf(value);
+  const [detailOpen, setDetailOpen] = useState(!!detail || !!question.detailAutoOpen);
+  useEffect(() => {
+    if (question.detailAutoOpen && question.detailVisibleIf && question.detailVisibleIf(value)) {
+      setDetailOpen(true);
+    }
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 22 }}>
@@ -218,29 +365,69 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange }) {
         <RankPicker options={question.options} value={value} onChange={set} />
       )}
 
-      <div style={{ marginTop: 20 }}>
-        {!detailOpen ? (
-          <button onClick={() => setDetailOpen(true)} style={{
-            background: "none", border: "none", cursor: "pointer", padding: 0,
-            fontFamily: "Inter", fontSize: 13, color: SUBTEXT, textDecoration: "underline",
-          }}>
-            + Add detail or context
-          </button>
-        ) : (
-          <div>
-            <label style={{ display: "block", fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 6 }}>
-              Anything you want to add about this one? (optional)
-            </label>
-            <textarea
-              value={detail || ""}
-              onChange={e => onDetailChange(question.id, e.target.value)}
-              placeholder="e.g. specific brand, exact spot it fits wrong, when it happens…"
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical", fontFamily: "Inter" }}
-            />
-          </div>
-        )}
-      </div>
+      {question.type === "dualtext" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {question.subLabels.map((label, i) => {
+            const key = i === 0 ? "a" : "b";
+            const dv = value || {};
+            return (
+              <div key={label}>
+                <label style={{ display: "block", fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 6 }}>
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  value={dv[key] || ""}
+                  onChange={e => set({ ...dv, [key]: e.target.value })}
+                  placeholder="e.g. brand name(s), or leave blank"
+                  style={inputStyle}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {(!question.detailVisibleIf || detailShouldShow) && (
+        <div style={{ marginTop: 20 }}>
+          {!detailOpen ? (
+            <button onClick={() => setDetailOpen(true)} style={{
+              background: "none", border: "none", cursor: "pointer", padding: 0,
+              fontFamily: "Inter", fontSize: 13, color: SUBTEXT, textDecoration: "underline",
+            }}>
+              + {question.detailLabel || "Add detail or context"}
+            </button>
+          ) : (
+            <div>
+              <label style={{ display: "block", fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 6 }}>
+                {question.detailLabel || "Anything you want to add about this one? (optional)"}
+              </label>
+              <textarea
+                value={detail || ""}
+                onChange={e => onDetailChange(question.id, e.target.value)}
+                placeholder={question.detailPlaceholder || "e.g. specific brand, exact spot it fits wrong, when it happens…"}
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "Inter" }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InterstitialScreen({ question, onContinue }) {
+  return (
+    <div style={{ textAlign: "center", padding: "40px 0" }}>
+      <CheckCircle2 size={30} color={ACCENT} />
+      <h2 style={{ fontFamily: "Bebas Neue", fontSize: 28, letterSpacing: "0.02em", color: TEXT, margin: "16px 0 6px" }}>
+        {question.title}
+      </h2>
+      <p style={{ fontFamily: "Inter", fontSize: 14, color: SUBTEXT, marginBottom: 26 }}>
+        {question.subtitle}
+      </p>
+      <Button primary onClick={onContinue}>Continue <ChevronRight size={16} /></Button>
     </div>
   );
 }
@@ -257,17 +444,17 @@ function RankPicker({ options, value, onChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {order.map((opt, i) => (
-        <div key={opt} style={{
+        <div key={opt} className="tap-target" style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 14px", borderRadius: 6, background: PANEL, border: `1px solid ${LINE}`,
+          padding: "12px 14px", borderRadius: 8, background: PANEL, border: `1px solid ${LINE}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontFamily: "Bebas Neue", fontSize: 20, color: ACCENT, width: 22 }}>{i + 1}</span>
             <span style={{ fontFamily: "Inter", fontSize: 15, color: TEXT }}>{opt}</span>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => move(i, -1)} disabled={i === 0} style={rankBtnStyle(i === 0)}>↑</button>
-            <button onClick={() => move(i, 1)} disabled={i === order.length - 1} style={rankBtnStyle(i === order.length - 1)}>↓</button>
+            <button onClick={() => move(i, -1)} disabled={i === 0} className="tap-target" style={rankBtnStyle(i === 0)}>↑</button>
+            <button onClick={() => move(i, 1)} disabled={i === order.length - 1} className="tap-target" style={rankBtnStyle(i === order.length - 1)}>↓</button>
           </div>
         </div>
       ))}
@@ -276,18 +463,20 @@ function RankPicker({ options, value, onChange }) {
 }
 
 const rankBtnStyle = (disabled) => ({
-  width: 30, height: 30, borderRadius: 4, border: `1px solid ${LINE}`, background: "transparent",
+  width: 32, height: 32, borderRadius: 6, border: `1px solid ${LINE}`, background: "transparent",
   color: disabled ? SUBTEXT : TEXT, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1,
+  WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
 });
 
 function OptionPill({ label, selected, onClick }) {
   return (
-    <div onClick={onClick} style={{
-      flex: 1, textAlign: "center", padding: "16px 0", borderRadius: 6, cursor: "pointer",
+    <div onClick={onClick} className="tap-target opt-hover" style={{
+      flex: 1, textAlign: "center", padding: "17px 0", borderRadius: 8, cursor: "pointer",
       fontFamily: "Inter", fontWeight: 600, fontSize: 15,
-      border: `1px solid ${selected ? ACCENT : LINE}`,
+      border: `1.5px solid ${selected ? ACCENT : LINE}`,
       background: selected ? "rgba(212,162,76,0.14)" : "transparent",
       color: selected ? ACCENT : TEXT,
+      WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
       {label}
     </div>
@@ -296,18 +485,19 @@ function OptionPill({ label, selected, onClick }) {
 
 function OptionRow({ label, selected, onClick, checkbox }) {
   return (
-    <div onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 10, padding: "13px 14px", borderRadius: 6, cursor: "pointer",
-      border: `1px solid ${selected ? ACCENT : LINE}`,
+    <div onClick={onClick} className="tap-target opt-hover" style={{
+      display: "flex", alignItems: "center", gap: 10, padding: "14px 14px", borderRadius: 8, cursor: "pointer",
+      border: `1.5px solid ${selected ? ACCENT : LINE}`,
       background: selected ? "rgba(212,162,76,0.10)" : "transparent",
+      WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
     }}>
-      <div style={{
+      <div className="tap-target" style={{
         width: 18, height: 18, borderRadius: checkbox ? 4 : 9, flexShrink: 0,
         border: `1.5px solid ${selected ? ACCENT : SUBTEXT}`,
         background: selected ? ACCENT : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {selected && <CheckCircle2 size={14} color={BG} strokeWidth={3} />}
+        {selected && <span className="pop-in"><CheckCircle2 size={14} color={BG} strokeWidth={3} /></span>}
       </div>
       <span style={{ fontFamily: "Inter", fontSize: 15, color: TEXT }}>{label}</span>
     </div>
@@ -315,24 +505,30 @@ function OptionRow({ label, selected, onClick, checkbox }) {
 }
 
 const inputStyle = {
-  width: "100%", padding: "14px 16px", borderRadius: 6, border: `1px solid ${LINE}`,
+  width: "100%", padding: "14px 16px", borderRadius: 8, border: `1px solid ${LINE}`,
   background: PANEL, color: TEXT, fontFamily: "Inter", fontSize: 16, outline: "none", boxSizing: "border-box",
+  transition: "border-color 0.18s ease, box-shadow 0.18s ease",
 };
 
 function isAnswered(q, value) {
+  if (q.optional) return true;
+  if (q.type === "interstitial") return true;
   if (q.type === "multi") return Array.isArray(value) && value.length > 0;
   if (q.type === "number") return value !== undefined && value !== "" && value !== null;
+  if (q.type === "dualtext") return true; // dualtext questions are treated as optional by default
   return value !== undefined && value !== null && value !== "";
 }
 
-function Survey({ onDone }) {
+function Survey({ survey, onDone }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [details, setDetails] = useState({});
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const qs = visibleQuestions(answers);
+  const qs = visibleQuestions(answers, survey.questions, survey.conditional);
   const q = qs[step];
+  const realQuestionCount = qs.filter(x => x.type !== "interstitial").length;
+  const realQuestionIndex = qs.slice(0, step + 1).filter(x => x.type !== "interstitial").length;
 
   const setAnswer = (id, val) => setAnswers(a => ({ ...a, [id]: val }));
   const setDetail = (id, val) => setDetails(d => ({ ...d, [id]: val }));
@@ -345,7 +541,7 @@ function Survey({ onDone }) {
       setSubmitError(null);
       try {
         const cleanDetails = Object.fromEntries(Object.entries(details).filter(([, v]) => v && v.trim()));
-        const { error } = await supabase.from("survey_responses").insert({
+        const { error } = await supabase.from(survey.table).insert({
           answers,
           details: cleanDetails,
         });
@@ -363,34 +559,59 @@ function Survey({ onDone }) {
   const back = () => step > 0 && setStep(step - 1);
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px" }}>
-      <ProgressPlates current={step} total={qs.length} />
-      <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14, letterSpacing: "0.04em" }}>
-        QUESTION {step + 1} OF {qs.length}
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, maxWidth: 560, width: "100%", margin: "0 auto", padding: "28px 20px 110px" }}>
+        <ProgressPlates current={step} total={qs.length} />
+        {q.type !== "interstitial" && (
+          <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14, letterSpacing: "0.04em" }}>
+            QUESTION {realQuestionIndex} OF {realQuestionCount}
+          </div>
+        )}
+        <div key={q.id} className="q-anim" style={{
+          background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14,
+          padding: q.type === "interstitial" ? "8px 20px" : "24px 20px",
+        }}>
+          {q.type === "interstitial" ? (
+            <InterstitialScreen question={q} onContinue={next} />
+          ) : (
+            <QuestionScreen question={q} value={answers[q.id]} onChange={setAnswer}
+              detail={details[q.id]} onDetailChange={setDetail} />
+          )}
+        </div>
+        {submitError && (
+          <div style={{ marginTop: 16, fontFamily: "Inter", fontSize: 13, color: "#E08A82" }}>
+            {submitError}
+          </div>
+        )}
       </div>
-      <QuestionScreen key={q.id} question={q} value={answers[q.id]} onChange={setAnswer}
-        detail={details[q.id]} onDetailChange={setDetail} />
-      {submitError && (
-        <div style={{ marginTop: 16, fontFamily: "Inter", fontSize: 13, color: "#E08A82" }}>
-          {submitError}
+      {q.type !== "interstitial" && (
+        <div style={{
+          position: "fixed", left: 0, right: 0, bottom: 0,
+          background: `linear-gradient(to top, ${BG} 55%, rgba(27,30,36,0))`,
+          paddingTop: 24,
+        }}>
+          <div style={{
+            maxWidth: 560, margin: "0 auto", padding: "0 20px",
+            paddingBottom: "calc(18px + env(safe-area-inset-bottom, 0px))",
+            display: "flex", justifyContent: "space-between",
+          }}>
+            <Button onClick={back} style={{ visibility: step === 0 ? "hidden" : "visible" }}>
+              <ChevronLeft size={16} /> Back
+            </Button>
+            <Button primary disabled={!isAnswered(q, answers[q.id]) || saving} onClick={next}>
+              {saving ? "Saving…" : step === qs.length - 1 ? "Submit" : "Next"} <ChevronRight size={16} />
+            </Button>
+          </div>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 34 }}>
-        <Button onClick={back} style={{ visibility: step === 0 ? "hidden" : "visible" }}>
-          <ChevronLeft size={16} /> Back
-        </Button>
-        <Button primary disabled={!isAnswered(q, answers[q.id]) || saving} onClick={next}>
-          {saving ? "Saving…" : step === qs.length - 1 ? "Submit" : "Next"} <ChevronRight size={16} />
-        </Button>
-      </div>
     </div>
   );
 }
 
 function ThankYou({ onViewResults }) {
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
-      <Dumbbell size={36} color={ACCENT} />
+    <div className="view-fade" style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <span className="pop-in" style={{ display: "inline-flex" }}><Dumbbell size={36} color={ACCENT} /></span>
       <h1 style={{ fontFamily: "Bebas Neue", fontSize: 34, letterSpacing: "0.02em", color: TEXT, margin: "18px 0 8px" }}>
         LOGGED
       </h1>
@@ -398,7 +619,7 @@ function ThankYou({ onViewResults }) {
         Thanks — your answers are in. If you want to fill it out again for someone else nearby, refresh the page.
       </p>
       <div style={{ marginTop: 26 }}>
-        <button onClick={onViewResults} style={{
+        <button onClick={onViewResults} className="tap-target" style={{
           background: "none", border: "none", color: SUBTEXT, fontFamily: "Inter", fontSize: 12,
           cursor: "pointer", textDecoration: "underline", opacity: 0.6,
         }}>
@@ -415,17 +636,18 @@ function PasscodeGate({ onUnlock }) {
   const CODE = "results2024";
   const submit = () => {
     if (code === CODE) onUnlock();
-    else { setError(true); setTimeout(() => setError(false), 1200); }
+    else { setError(true); setTimeout(() => setError(false), 500); }
   };
   return (
-    <div style={{ maxWidth: 360, margin: "0 auto", padding: "100px 20px", textAlign: "center" }}>
-      <Lock size={28} color={ACCENT} />
+    <div className="view-fade" style={{ maxWidth: 360, margin: "0 auto", padding: "100px 20px", textAlign: "center" }}>
+      <span className="pop-in" style={{ display: "inline-flex" }}><Lock size={28} color={ACCENT} /></span>
       <h2 style={{ fontFamily: "Bebas Neue", fontSize: 26, color: TEXT, margin: "16px 0 4px" }}>CREATOR ACCESS</h2>
       <p style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 20 }}>
         This is a soft gate, not real security — anyone with the code (or the page source) can view results.
       </p>
       <input type="password" value={code} onChange={e => setCode(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()}
+        className={error ? "shake" : ""}
         placeholder="Passcode" style={{ ...inputStyle, textAlign: "center", borderColor: error ? "#C0524A" : LINE }} />
       <div style={{ marginTop: 16 }}>
         <Button primary onClick={submit}>Unlock</Button>
@@ -438,7 +660,7 @@ function PasscodeGate({ onUnlock }) {
 // polling. Falls back to a slow poll too, in case a realtime event is missed.
 const FALLBACK_POLL_MS = 30000;
 
-function useResponses(active) {
+function useResponses(active, table) {
   const [responses, setResponses] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -446,11 +668,12 @@ function useResponses(active) {
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    setResponses(null); // reset when switching tables
 
     const load = async () => {
       try {
         const { data, error } = await supabase
-          .from("survey_responses")
+          .from(table)
           .select("answers, details, submitted_at")
           .order("submitted_at", { ascending: true });
         if (error) throw error;
@@ -475,8 +698,8 @@ function useResponses(active) {
     load();
 
     const channel = supabase
-      .channel("survey_responses_changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "survey_responses" }, load)
+      .channel(`${table}_changes`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table }, load)
       .subscribe();
 
     const interval = setInterval(load, FALLBACK_POLL_MS);
@@ -486,7 +709,7 @@ function useResponses(active) {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [active]);
+  }, [active, table]);
 
   return { responses, error, lastUpdated };
 }
@@ -525,6 +748,11 @@ function aggregateFor(question, responses) {
     }));
     return { kind: "rank", data, n: answered.length };
   }
+  if (question.type === "dualtext") {
+    const entries = answered.filter(v => v && ((v.a && v.a.trim()) || (v.b && v.b.trim())));
+    const data = entries.map(v => ({ a: v.a || "", b: v.b || "" }));
+    return { kind: "dualtext", data, n: entries.length };
+  }
   return { kind: "counts", data: [], n: 0 };
 }
 
@@ -552,14 +780,17 @@ function DetailList({ question, responses }) {
   );
 }
 
-function ResultsView({ responses, lastUpdated }) {
+function ResultsView({ survey, responses, lastUpdated }) {
   const total = responses.length;
+  const questions = survey.questions.filter(q => q.type !== "interstitial");
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "40px 20px 80px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <BarChart3 size={22} color={ACCENT} />
-          <h1 style={{ fontFamily: "Bebas Neue", fontSize: 30, color: TEXT, margin: 0, letterSpacing: "0.02em" }}>RESULTS</h1>
+          <h1 style={{ fontFamily: "Bebas Neue", fontSize: 30, color: TEXT, margin: 0, letterSpacing: "0.02em" }}>
+            RESULTS — {survey.shortTitle.toUpperCase()}
+          </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "Inter", fontSize: 11, color: SUBTEXT }}>
           <span style={{ width: 7, height: 7, borderRadius: 99, background: "#5BAE72", display: "inline-block", boxShadow: "0 0 0 3px rgba(91,174,114,0.2)" }} />
@@ -570,35 +801,39 @@ function ResultsView({ responses, lastUpdated }) {
         {total} total submission{total === 1 ? "" : "s"}, updating in real time. Questions marked <NewBadge /> have fewer responses since they were added later — read percentages on those with caution.
       </p>
 
-      <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-        <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
-          Issues noted from early responses
-        </h3>
-        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
-          Collected before the survey was digitized — listed as themes, not tied to individual respondent counts.
-        </div>
-        <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-          {LEGACY_ISSUE_NOTES.map((note, i) => (
-            <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
-          ))}
-        </ul>
-      </div>
+      {survey.legacy && (
+        <>
+          <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
+            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+              Issues noted from early responses
+            </h3>
+            <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+              Collected before the survey was digitized — listed as themes, not tied to individual respondent counts.
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+              {LEGACY_ISSUE_NOTES.map((note, i) => (
+                <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+              ))}
+            </ul>
+          </div>
 
-      <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-        <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
-          Time in gym — early responses
-        </h3>
-        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
-          Free-text answers collected before this became a structured question. Format: duration — age.
-        </div>
-        <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-          {LEGACY_GYM_DURATION_NOTES.map((note, i) => (
-            <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
-          ))}
-        </ul>
-      </div>
+          <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
+            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+              Time in gym — early responses
+            </h3>
+            <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+              Free-text answers collected before this became a structured question. Format: duration — age.
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+              {LEGACY_GYM_DURATION_NOTES.map((note, i) => (
+                <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
 
-      {QUESTIONS.map(q => {
+      {questions.map(q => {
         const agg = aggregateFor(q, responses);
         return (
           <div key={q.id} style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
@@ -641,7 +876,22 @@ function ResultsView({ responses, lastUpdated }) {
               </div>
             )}
 
-            {agg.n === 0 && <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
+            {agg.kind === "dualtext" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {agg.data.length === 0 && <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
+                {agg.data.map((d, i) => (
+                  <div key={i} style={{
+                    display: "flex", flexDirection: "column", gap: 4, fontFamily: "Inter", fontSize: 13,
+                    background: PANEL, border: `1px solid ${LINE}`, borderRadius: 6, padding: "10px 12px",
+                  }}>
+                    {d.a && <div><span style={{ color: SUBTEXT }}>{q.subLabels[0]}: </span><span style={{ color: TEXT }}>{d.a}</span></div>}
+                    {d.b && <div><span style={{ color: SUBTEXT }}>{q.subLabels[1]}: </span><span style={{ color: TEXT }}>{d.b}</span></div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {agg.n === 0 && agg.kind !== "dualtext" && <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
 
             <DetailList question={q} responses={responses} />
           </div>
@@ -660,45 +910,80 @@ function wantsResultsFromUrl() {
   }
 }
 
+function wantsV1FromUrl() {
+  try {
+    const { search, hash } = window.location;
+    return /v1/i.test(search) || /v1/i.test(hash);
+  } catch (e) {
+    return false;
+  }
+}
+
 export default function App() {
   useFonts();
+  const [surveyKey, setSurveyKey] = useState(() => (wantsV1FromUrl() ? "v1" : "v2"));
+  const survey = SURVEYS[surveyKey];
   const [view, setView] = useState(() => (wantsResultsFromUrl() ? "gate" : "survey")); // survey | thanks | gate | results
   const isResultsActive = view === "results";
-  const { responses, error, lastUpdated } = useResponses(isResultsActive);
+  const { responses, error, lastUpdated } = useResponses(isResultsActive, survey.table);
+
+  const switchSurvey = (key) => {
+    setSurveyKey(key);
+    setView(wantsResultsFromUrl() ? "gate" : "survey");
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT }}>
-      <style>{`* { box-sizing: border-box; } body { margin: 0; }`}</style>
-      <div style={{ borderBottom: `1px solid ${LINE}`, padding: "16px 20px" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <GlobalStyles />
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${LINE}`, padding: "16px 20px",
+        background: "rgba(27,30,36,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+      }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
-            <Dumbbell size={18} color={ACCENT} /> GYM FIT SURVEY
+            <Dumbbell size={18} color={ACCENT} /> {survey.title}
           </div>
-          {view !== "gate" && view !== "results" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {view !== "gate" && view !== "results" && (
+              <button
+                onClick={() => setView("gate")}
+                className="tap-target"
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
+                  textDecoration: "underline",
+                }}
+              >
+                results
+              </button>
+            )}
             <button
-              onClick={() => setView("gate")}
+              onClick={() => switchSurvey(surveyKey === "v2" ? "v1" : "v2")}
+              className="tap-target"
               style={{
                 background: "none", border: "none", cursor: "pointer", padding: 0,
                 fontFamily: "Inter", fontSize: 11, color: SUBTEXT, opacity: 0.55,
                 textDecoration: "underline",
               }}
             >
-              results
+              {surveyKey === "v2" ? "view original survey" : "back to fit & expression survey"}
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {view === "survey" && <Survey onDone={() => setView("thanks")} />}
-      {view === "thanks" && <ThankYou onViewResults={() => setView("gate")} />}
-      {view === "gate" && <PasscodeGate onUnlock={() => setView("results")} />}
-      {view === "results" && (
-        responses === null
-          ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: SUBTEXT }}>Loading responses…</div>
-          : error
-            ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: "#C0524A" }}>{error}</div>
-            : <ResultsView responses={responses} lastUpdated={lastUpdated} />
-      )}
+      <div key={`${surveyKey}-${view}`} className="view-fade">
+        {view === "survey" && <Survey survey={survey} onDone={() => setView("thanks")} />}
+        {view === "thanks" && <ThankYou onViewResults={() => setView("gate")} />}
+        {view === "gate" && <PasscodeGate onUnlock={() => setView("results")} />}
+        {view === "results" && (
+          responses === null
+            ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: SUBTEXT }}>Loading responses…</div>
+            : error
+              ? <div style={{ textAlign: "center", padding: 80, fontFamily: "Inter", color: "#C0524A" }}>{error}</div>
+              : <ResultsView survey={survey} responses={responses} lastUpdated={lastUpdated} />
+        )}
+      </div>
     </div>
   );
 }
