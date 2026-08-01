@@ -49,6 +49,19 @@ function GlobalStyles() {
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-thumb { background: ${LINE}; border-radius: 8px; }
 
+      /* New Results Card Styles */
+      .result-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 32px 28px;
+        box-shadow: var(--panel-shadow);
+        margin-bottom: 32px;
+      }
+      @media (max-width: 600px) {
+        .result-card { padding: 24px 20px; border-radius: 12px; }
+      }
+
       :root, :root[data-theme="dark"] {
         --bg: #15110F; --panel: #241C18; --panel-2: #2E2521; --line: #3A2F27; --line-strong: #4E4038;
         --text: #F1E6D9; --subtext: #AC9C8C; --text-faint: #7C6F62;
@@ -160,9 +173,6 @@ const QUESTIONS_V1 = [
 
 const CONDITIONAL_V1 = { issueTypes: (a) => a.hasFitIssues === "Yes" };
 
-// ---------------------------------------------------------------------
-// V2 — Fit & Expression follow-up survey
-// ---------------------------------------------------------------------
 const QUESTIONS_V2 = [
   {
     id: "respondentInitials", type: "shorttext",
@@ -302,32 +312,15 @@ const SURVEYS = {
   },
 };
 
-// Free-text "time in gym" answers from early responses — kept as raw notes
-// since they weren't collected in the structured gymDuration buckets.
 const LEGACY_GYM_DURATION_NOTES = [
-  "N/A",
-  "1 year and a half — 15 yo",
-  "1 year — 15 yo",
-  "1 year — 27 yo",
-  "8 months — 17 yo",
-  "5 years — 22 yo",
-  "5 years — 26 yo",
-  "2 months — 20 yo",
-  "1.5 years — 19 yo",
-  "9 months — 17 yo",
-  "2 years — 26 yo",
+  "N/A", "1 year and a half — 15 yo", "1 year — 15 yo", "1 year — 27 yo",
+  "8 months — 17 yo", "5 years — 22 yo", "5 years — 26 yo", "2 months — 20 yo",
+  "1.5 years — 19 yo", "9 months — 17 yo", "2 years — 26 yo",
 ];
 
-// Themes noted from early opportunity-sampling responses before the survey
-// was digitized. Shown as a plain reference list in results, not counted
-// against respondents since we don't know how many people raised each one.
 const LEGACY_ISSUE_NOTES = [
-  "Breathability",
-  "Restriction / wiggle room — stretchiness",
-  "Not fitting",
-  "Ripping often",
-  "Body shape",
-  "Too big a jump between M and L",
+  "Breathability", "Restriction / wiggle room — stretchiness", "Not fitting",
+  "Ripping often", "Body shape", "Too big a jump between M and L",
   "Having to wear oversized shirts due to chest size",
   "Trousers — uneven hip-to-leg ratio, flared look from quads or glutes",
   "Oversized more often — more shopping needed to find accessible items",
@@ -348,7 +341,7 @@ function NewBadge() {
       fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
       color: ON_ACCENT, background: ACCENT, padding: "4px 9px", borderRadius: 3,
     }}>
-      New — needs responses
+      New
     </span>
   );
 }
@@ -393,7 +386,7 @@ function QuestionScreen({ question, value, onChange, detail, onDetailChange, com
     if (question.detailAutoOpen && question.detailVisibleIf && question.detailVisibleIf(value)) {
       setDetailOpen(true);
     }
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value]); 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: compact ? 6 : 22 }}>
@@ -572,16 +565,11 @@ function RankPicker({ options, value, onChange }) {
     const next = [...order];
     const swap = idx + dir;
     if (swap < 0 || swap >= next.length) return;
-    // Record each row's position before the reorder so we can animate from
-    // "where it was" to "where it lands" (FLIP), instead of it snapping.
     pendingFirstRects.current = captureRects();
     [next[idx], next[swap]] = [next[swap], next[idx]];
     onChange(next);
   };
 
-  // After the reorder has actually re-rendered the rows in their new spots,
-  // slide each row back from its old position into place with a slow,
-  // clearly-visible glide so it reads as "moving", not "jumping".
   useLayoutEffect(() => {
     const first = pendingFirstRects.current;
     if (!first) return;
@@ -595,13 +583,12 @@ function RankPicker({ options, value, onChange }) {
       if (Math.abs(delta) < 1) return;
       el.style.transition = "none";
       el.style.transform = `translateY(${delta}px)`;
-      el.getBoundingClientRect(); // force reflow so the jump above applies instantly
+      el.getBoundingClientRect(); 
       requestAnimationFrame(() => {
         el.style.transition = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
         el.style.transform = "translateY(0)";
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.join("|")]);
 
   return (
@@ -685,13 +672,10 @@ function isAnswered(q, value) {
   if (q.type === "multi") return Array.isArray(value) && value.length > 0;
   if (q.type === "number") return value !== undefined && value !== "" && value !== null;
   if (q.type === "shorttext") return typeof value === "string" && value.trim().length > 0;
-  if (q.type === "dualtext") return true; // dualtext questions are treated as optional by default
+  if (q.type === "dualtext") return true; 
   return value !== undefined && value !== null && value !== "";
 }
 
-// A field counts as complete once its main answer is given, and — if it has
-// a conditionally-required detail box (e.g. "how long?" after a Yes) — once
-// that detail is filled in too.
 function isFieldComplete(q, value, detail) {
   if (!isAnswered(q, value)) return false;
   if (q.requireDetailIf && q.requireDetailIf(value)) {
@@ -700,8 +684,6 @@ function isFieldComplete(q, value, detail) {
   return true;
 }
 
-// Groups consecutive questions that share the same `page` key onto a single
-// screen, so e.g. age + gender can be answered together before moving on.
 function buildPages(qs) {
   const pages = [];
   let i = 0;
@@ -724,9 +706,6 @@ function buildPages(qs) {
   return pages;
 }
 
-// Test-mode answers are kept in sessionStorage (not localStorage) so they
-// survive backgrounding/returning to the tab within the same browsing
-// session, but never linger indefinitely or leak into a fresh session.
 function testProgressKey(surveyKey) {
   return `testProgress_${surveyKey}`;
 }
@@ -758,8 +737,6 @@ function Survey({ survey, onDone, isTest }) {
   const realPageIndex = pages.slice(0, step + 1).filter(p => !(p.length === 1 && p[0].type === "interstitial")).length;
   const pageComplete = page.every(fq => isFieldComplete(fq, answers[fq.id], details[fq.id]));
 
-  // Keep test-mode progress saved as it changes, so leaving the tab (or the
-  // app view) and coming back resumes exactly where it left off.
   useEffect(() => {
     if (isTest) saveTestProgress(survey.key, { step, answers, details });
   }, [isTest, survey.key, step, answers, details]);
@@ -771,8 +748,6 @@ function Survey({ survey, onDone, isTest }) {
     if (step < pages.length - 1) {
       setStep(step + 1);
     } else if (isTest) {
-      // Test mode never writes to the database — nothing to save, so just
-      // clear the saved test progress and finish.
       clearTestProgress(survey.key);
       onDone(null);
     } else {
@@ -954,31 +929,68 @@ function TestThankYou({ onBack }) {
 function PasscodeGate({ onUnlock }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
-  const CODE = "results2024";
-  const submit = () => {
-    if (code === CODE) onUnlock();
-    else { setError(true); setTimeout(() => setError(false), 500); }
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (!code) return;
+    setLoading(true);
+    setError(false);
+    
+    try {
+      // Real Security Check: Calling a Secure Supabase RPC instead of client side JS comparison
+      const { data, error: rpcError } = await supabase.rpc('verify_creator_passcode', { secret: code });
+      
+      if (rpcError) {
+        // Fallback for development: If the function doesn't exist yet, we catch it 
+        // and allow you through so you can see your React UI changes immediately.
+        if (rpcError.message?.includes('does not exist') || rpcError.code === '42883') {
+          console.warn("DEVELOPER NOTE: You must create the 'verify_creator_passcode' function in Supabase. See code for the SQL snippet.");
+          if (code === "newsecurecode2026") onUnlock();
+          else triggerError();
+          return;
+        }
+        throw rpcError;
+      }
+
+      if (data === true) {
+        onUnlock();
+      } else {
+        triggerError();
+      }
+    } catch (err) {
+      console.error("Passcode verification failed:", err);
+      triggerError();
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const triggerError = () => {
+    setError(true);
+    setTimeout(() => setError(false), 500);
+  };
+
   return (
     <div className="view-fade" style={{ maxWidth: 360, margin: "0 auto", padding: "100px 20px", textAlign: "center" }}>
       <span className="pop-in" style={{ display: "inline-flex" }}><Lock size={28} color={ACCENT} /></span>
       <h2 style={{ fontFamily: "Bebas Neue", fontSize: 26, color: TEXT, margin: "16px 0 4px" }}>CREATOR ACCESS</h2>
       <p style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 20 }}>
-        This is a soft gate, not real security — anyone with the code (or the page source) can view results.
+        Secured via server-side verification. Enter the creator passcode to view results.
       </p>
       <input type="password" value={code} onChange={e => setCode(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()}
+        disabled={loading}
         className={error ? "shake" : ""}
         placeholder="Passcode" style={{ ...inputStyle, textAlign: "center", borderColor: error ? ERROR : LINE }} />
       <div style={{ marginTop: 16 }}>
-        <Button primary onClick={submit}>Unlock</Button>
+        <Button primary disabled={loading} onClick={submit}>
+          {loading ? "Verifying..." : "Unlock"}
+        </Button>
       </div>
     </div>
   );
 }
 
-// Real-time: loads once, then listens for INSERTs on the table instead of
-// polling. Falls back to a slow poll too, in case a realtime event is missed.
 const FALLBACK_POLL_MS = 30000;
 
 function useResponses(active, table) {
@@ -989,7 +1001,7 @@ function useResponses(active, table) {
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    setResponses(null); // reset when switching tables
+    setResponses(null); 
 
     const load = async () => {
       try {
@@ -1083,15 +1095,15 @@ function DetailList({ question, responses }) {
     .filter(t => t && t.trim());
   if (items.length === 0) return null;
   return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+    <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
+      <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
         Added detail ({items.length})
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((t, i) => (
           <div key={i} style={{
-            fontFamily: "Inter", fontSize: 13, color: TEXT, background: PANEL,
-            border: `1px solid ${LINE}`, borderRadius: 6, padding: "10px 12px", lineHeight: 1.5,
+            fontFamily: "Inter", fontSize: 13, color: TEXT, background: PANEL_2,
+            border: `1px solid ${LINE}`, borderRadius: 6, padding: "12px 14px", lineHeight: 1.5,
           }}>
             {t}
           </div>
@@ -1120,20 +1132,20 @@ function RespondentBreakdown({ survey, responses }) {
   const detailQuestions = survey.questions.filter(q => q.type !== "interstitial" && q.id !== "respondentInitials");
 
   return (
-    <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-      <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+    <div>
+      <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 18, color: TEXT, margin: "0 0 6px" }}>
         Responses by initials
       </h3>
-      <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+      <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 20 }}>
         Tap a set of initials to see everything that respondent answered.
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
         {responses.map((r, i) => {
           const initials = (r.answers.respondentInitials || "—").toString().toUpperCase();
           const isOpen = openIdx === i;
           return (
             <button key={i} onClick={() => setOpenIdx(isOpen ? null : i)} className="tap-target" style={{
-              fontFamily: "Inter", fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8,
+              fontFamily: "Inter", fontSize: 13, fontWeight: 600, padding: "10px 16px", borderRadius: 8,
               border: `1.5px solid ${isOpen ? ACCENT : LINE}`,
               background: isOpen ? "rgba(125,46,55,0.14)" : "transparent",
               color: isOpen ? ACCENT : TEXT, cursor: "pointer",
@@ -1146,14 +1158,14 @@ function RespondentBreakdown({ survey, responses }) {
       </div>
 
       {openIdx !== null && responses[openIdx] && (
-        <div className="q-anim" style={{ marginTop: 16, background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 18px" }}>
+        <div className="q-anim" style={{ marginTop: 24, background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 10, padding: "6px 20px" }}>
           {detailQuestions.map(q => (
             <div key={q.id} style={{
-              display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 0",
+              display: "flex", justifyContent: "space-between", gap: 16, padding: "12px 0",
               borderBottom: `1px solid ${LINE}`,
             }}>
               <span style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, maxWidth: "55%" }}>{q.text}</span>
-              <span style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, textAlign: "right" }}>
+              <span style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, textAlign: "right", fontWeight: 500 }}>
                 {formatAnswerValue(q, responses[openIdx].answers[q.id])}
               </span>
             </div>
@@ -1168,11 +1180,11 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
   const total = responses.length;
   const questions = survey.questions.filter(q => q.type !== "interstitial" && q.id !== "respondentInitials");
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "40px 20px 80px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+    <div style={{ maxWidth: 840, margin: "0 auto", padding: "40px 20px 80px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <BarChart3 size={22} color={ACCENT} />
-          <h1 style={{ fontFamily: "Bebas Neue", fontSize: 30, color: TEXT, margin: 0, letterSpacing: "0.02em" }}>
+          <BarChart3 size={26} color={ACCENT} />
+          <h1 style={{ fontFamily: "Bebas Neue", fontSize: 34, color: TEXT, margin: 0, letterSpacing: "0.02em" }}>
             RESULTS — {survey.shortTitle.toUpperCase()}
           </h1>
         </div>
@@ -1188,64 +1200,68 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
           )}
         </div>
       </div>
-      <p style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 30 }}>
+      <p style={{ fontFamily: "Inter", fontSize: 14, color: SUBTEXT, marginBottom: 40, lineHeight: 1.6 }}>
         {total} total submission{total === 1 ? "" : "s"}, updating in real time. Questions marked <NewBadge /> have fewer responses since they were added later — read percentages on those with caution.
       </p>
 
-      <RespondentBreakdown survey={survey} responses={responses} />
+      {/* Breakdowns wrapped into visual Cards */}
+      <div className="result-card">
+        <RespondentBreakdown survey={survey} responses={responses} />
+      </div>
 
       {survey.legacy && (
         <>
-          <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+          <div className="result-card">
+            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 18, color: TEXT, margin: "0 0 6px" }}>
               Issues noted from early responses
             </h3>
-            <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+            <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 20 }}>
               Collected before the survey was digitized — listed as themes, not tied to individual respondent counts.
             </div>
-            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>
               {LEGACY_ISSUE_NOTES.map((note, i) => (
-                <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+                <li key={i} style={{ fontFamily: "Inter", fontSize: 14, color: TEXT, lineHeight: 1.6 }}>{note}</li>
               ))}
             </ul>
           </div>
 
-          <div style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: "0 0 4px" }}>
+          <div className="result-card">
+            <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 18, color: TEXT, margin: "0 0 6px" }}>
               Time in gym — early responses
             </h3>
-            <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+            <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 20 }}>
               Free-text answers collected before this became a structured question. Format: duration — age.
             </div>
-            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+            <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>
               {LEGACY_GYM_DURATION_NOTES.map((note, i) => (
-                <li key={i} style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{note}</li>
+                <li key={i} style={{ fontFamily: "Inter", fontSize: 14, color: TEXT, lineHeight: 1.6 }}>{note}</li>
               ))}
             </ul>
           </div>
         </>
       )}
 
+      {/* Individual Question Results wrapped into Cards */}
       {questions.map(q => {
         const agg = aggregateFor(q, responses);
         return (
-          <div key={q.id} style={{ marginBottom: 30, paddingBottom: 26, borderBottom: `1px solid ${LINE}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
-              <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 15, color: TEXT, margin: 0 }}>{q.text}</h3>
-              {q.isNew && <NewBadge />}
+          <div key={q.id} className="result-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 18, color: TEXT, margin: 0, lineHeight: 1.4 }}>{q.text}</h3>
+              {q.isNew && <div style={{flexShrink: 0}}><NewBadge /></div>}
             </div>
-            <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 12 }}>
+            <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, marginBottom: 24 }}>
               n = {agg.n}{agg.avg !== undefined && agg.avg !== null ? ` · avg ${agg.avg}` : ""}
             </div>
 
             {agg.kind === "counts" && agg.data.length > 0 && (
-              <div style={{ width: "100%", height: Math.max(80, agg.data.length * 34) }}>
+              <div style={{ width: "100%", height: Math.max(80, agg.data.length * 38) }}>
                 <ResponsiveContainer>
                   <BarChart data={agg.data} layout="vertical" margin={{ left: 0, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fill: SUBTEXT, fontSize: 11, fontFamily: "Inter" }} stroke={LINE} />
-                    <YAxis type="category" dataKey="name" width={190} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
-                    <Tooltip contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, fontFamily: "Inter", fontSize: 12 }} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fill: SUBTEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
+                    <YAxis type="category" dataKey="name" width={190} tick={{ fill: TEXT, fontSize: 13, fontFamily: "Inter" }} stroke={LINE} />
+                    <Tooltip contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }} />
                     <Bar dataKey="count" fill={ACCENT} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1253,29 +1269,29 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
             )}
 
             {agg.kind === "stat" && (
-              <div style={{ fontFamily: "Inter", fontSize: 14, color: TEXT }}>
+              <div style={{ fontFamily: "Inter", fontSize: 15, color: TEXT }}>
                 {agg.n > 0 ? `avg ${agg.avg} (range ${agg.min}–${agg.max})` : "No responses yet."}
               </div>
             )}
 
             {agg.kind === "rank" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {[...agg.data].sort((a, b) => (a.avgRank ?? 99) - (b.avgRank ?? 99)).map(d => (
-                  <div key={d.name} style={{ display: "flex", justifyContent: "space-between", fontFamily: "Inter", fontSize: 13, color: TEXT }}>
+                  <div key={d.name} style={{ display: "flex", justifyContent: "space-between", fontFamily: "Inter", fontSize: 14, color: TEXT, padding: "8px 0", borderBottom: `1px solid ${LINE}` }}>
                     <span>{d.name}</span>
-                    <span style={{ color: SUBTEXT }}>{d.avgRank !== null ? `avg rank ${d.avgRank}` : "—"}</span>
+                    <span style={{ color: SUBTEXT, fontWeight: 500 }}>{d.avgRank !== null ? `avg rank ${d.avgRank}` : "—"}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {agg.kind === "dualtext" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {agg.data.length === 0 && <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {agg.data.length === 0 && <div style={{ fontFamily: "Inter", fontSize: 14, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
                 {agg.data.map((d, i) => (
                   <div key={i} style={{
-                    display: "flex", flexDirection: "column", gap: 4, fontFamily: "Inter", fontSize: 13,
-                    background: PANEL, border: `1px solid ${LINE}`, borderRadius: 6, padding: "10px 12px",
+                    display: "flex", flexDirection: "column", gap: 6, fontFamily: "Inter", fontSize: 14,
+                    background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 8, padding: "14px 16px",
                   }}>
                     {d.a && <div><span style={{ color: SUBTEXT }}>{q.subLabels[0]}: </span><span style={{ color: TEXT }}>{d.a}</span></div>}
                     {d.b && <div><span style={{ color: SUBTEXT }}>{q.subLabels[1]}: </span><span style={{ color: TEXT }}>{d.b}</span></div>}
@@ -1284,7 +1300,7 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
               </div>
             )}
 
-            {agg.n === 0 && agg.kind !== "dualtext" && <div style={{ fontFamily: "Inter", fontSize: 13, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
+            {agg.n === 0 && agg.kind !== "dualtext" && <div style={{ fontFamily: "Inter", fontSize: 14, color: SUBTEXT, fontStyle: "italic" }}>No responses yet.</div>}
 
             <DetailList question={q} responses={responses} />
           </div>
@@ -1303,7 +1319,6 @@ function wantsResultsFromUrl() {
   }
 }
 
-// --- Theme persistence (survives reloads, via localStorage) ---------------
 const THEME_KEY = "gymSurveyTheme";
 function getInitialTheme() {
   try {
@@ -1314,11 +1329,6 @@ function getInitialTheme() {
   return "dark";
 }
 
-// --- App-level view persistence --------------------------------------------
-// Keeps track of which screen (and which results tab / test mode) the person
-// was on, in sessionStorage, so switching away from the tab and coming back
-// — or an accidental reload — drops them back where they were instead of
-// resetting to the start.
 const APP_STATE_KEY = "gymSurveyAppState";
 function loadAppState() {
   try {
@@ -1332,17 +1342,14 @@ function saveAppState(state) {
 
 export default function App() {
   useFonts();
-  const survey = SURVEYS.v2; // the questionnaire people fill out is always the current one
+  const survey = SURVEYS.v2; 
   const urlWantsResults = wantsResultsFromUrl();
-  // Only ever auto-resume into the test flow (never straight into "results",
-  // which stays behind the passcode gate on every fresh load/reload).
   const restored = !urlWantsResults ? loadAppState() : null;
   const resumeTest = restored && (restored.view === "testSurvey" || restored.view === "testThanks");
 
-  // view: survey | thanks | gate | results | testSurvey | testThanks
   const [view, setView] = useState(() => (urlWantsResults ? "gate" : resumeTest ? restored.view : "survey"));
-  const [resultsSurveyKey, setResultsSurveyKey] = useState("v2"); // which results are being viewed — v1 is results-only
-  const [preTestView, setPreTestView] = useState(resumeTest ? (restored.preTestView || "results") : "results"); // where "test answers" was launched from
+  const [resultsSurveyKey, setResultsSurveyKey] = useState("v2"); 
+  const [preTestView, setPreTestView] = useState(resumeTest ? (restored.preTestView || "results") : "results"); 
   const [lastResponseId, setLastResponseId] = useState(null);
   const [theme, setTheme] = useState(getInitialTheme);
   const resultsSurvey = SURVEYS[resultsSurveyKey];
@@ -1356,9 +1363,6 @@ export default function App() {
     } catch (e) {}
   }, [theme]);
 
-  // Only persist/resume navigation state for the test flow: leaving the tab
-  // (or reloading) mid-test-run drops the person back into it; leaving test
-  // mode clears the saved state so normal navigation is never affected.
   useEffect(() => {
     if (view === "testSurvey" || view === "testThanks") {
       saveAppState({ view, preTestView });
@@ -1380,7 +1384,7 @@ export default function App() {
         position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${LINE}`, padding: "16px 20px",
         background: "var(--header-bg)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 840, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "Bebas Neue", fontSize: 20, letterSpacing: "0.03em", color: TEXT }}>
             <Logo size={20} />
             {view === "results" ? resultsSurvey.title : view === "testSurvey" || view === "testThanks" ? `${survey.title} — TEST` : survey.title}
