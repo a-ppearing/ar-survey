@@ -1126,9 +1126,13 @@ function formatAnswerValue(question, value) {
 }
 
 // Converts an answer to a single comparable number so we can average it
-// across a demographic group (age range / gender). Only meaningful for
-// yes/no, scale, and plain numeric questions — everything else (select,
-// multi, rank, dualtext, free text) is skipped rather than guessed at.
+// across a demographic group (age range / gender).
+// - yesno: Yes = 1, No = 0
+// - scale / number: the value itself
+// - select: position of the chosen option in its options list (1 = first option)
+// - multi: how many options that respondent selected
+// Rank, dualtext, and free-text questions have no single meaningful number,
+// so those fall back to a plain note instead of a chart.
 function toNumericScore(question, value) {
   if (value === undefined || value === null || value === "") return null;
   if (question.type === "yesno") {
@@ -1140,19 +1144,42 @@ function toNumericScore(question, value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
   }
+  if (question.type === "select" && Array.isArray(question.options)) {
+    const idx = question.options.indexOf(value);
+    return idx === -1 ? null : idx + 1;
+  }
+  if (question.type === "multi") {
+    return Array.isArray(value) ? value.length : null;
+  }
+  return null;
+}
+
+// One-line explanation of what "avg" means for this question type, shown
+// under the mini charts so a position number or selection count isn't
+// mistaken for a scale rating.
+function demographicAvgNote(question) {
+  if (question.type === "select") {
+    return `Avg = position among the answer choices (1 = "${question.options[0]}", ${question.options.length} = "${question.options[question.options.length - 1]}").`;
+  }
+  if (question.type === "multi") {
+    return "Avg = average number of options selected.";
+  }
   return null;
 }
 
 // Small side chart: average numeric response to this question, broken down
 // by age range and by gender, so the two can be scanned next to the main
-// results chart for the same question.
+// results chart for the same question. Shown for every question — where the
+// answer type has no meaningful single number (rank, dualtext, free text),
+// a short note is shown instead of a chart.
 function DemographicBreakdown({ question, responses, survey }) {
   const ageQuestion = survey.questions.find(q => q.id === "respondentAge");
   const genderQuestion = survey.questions.find(q => q.id === "respondentGender");
   const isDemographicQuestion = ["respondentAge", "respondentGender", "respondentInitials"].includes(question.id);
 
   if ((!ageQuestion && !genderQuestion) || isDemographicQuestion) return null;
-  if (!["yesno", "scale", "number"].includes(question.type)) return null;
+
+  const scoreable = ["yesno", "scale", "number", "select", "multi"].includes(question.type);
 
   const groupAverages = (groupField, groupOrder) => {
     const buckets = {};
@@ -1172,12 +1199,9 @@ function DemographicBreakdown({ question, responses, survey }) {
     return entries;
   };
 
-  const ageData = ageQuestion ? groupAverages("respondentAge", ageQuestion.options) : [];
-  const genderData = genderQuestion ? groupAverages("respondentGender", genderQuestion.options) : [];
-
-  if (ageData.length === 0 && genderData.length === 0) return null;
-
-  const xDomain = question.type === "scale" ? [1, question.labels.length] : question.type === "yesno" ? [0, 1] : undefined;
+  const ageData = scoreable && ageQuestion ? groupAverages("respondentAge", ageQuestion.options) : [];
+  const genderData = scoreable && genderQuestion ? groupAverages("respondentGender", genderQuestion.options) : [];
+  const note = demographicAvgNote(question);
 
   const MiniChart = ({ title, data }) => (
     <div style={{ flex: "1 1 260px", minWidth: 220 }}>
@@ -1188,13 +1212,21 @@ function DemographicBreakdown({ question, responses, survey }) {
         <ResponsiveContainer>
           <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
-            <XAxis type="number" domain={xDomain} tick={{ fill: SUBTEXT, fontSize: 11, fontFamily: "Inter" }} stroke={LINE} />
+            <XAxis
+              type="number"
+              domain={question.type === "scale" ? [1, question.labels.length] : question.type === "yesno" ? [0, 1] : undefined}
+              tick={{ fill: TEXT, fontSize: 11, fontFamily: "Inter" }}
+              stroke={LINE}
+            />
             <YAxis type="category" dataKey="name" width={95} tick={{ fill: TEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
             <Tooltip
               contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }}
+              labelStyle={{ color: TEXT, fontWeight: 600, marginBottom: 4 }}
+              itemStyle={{ color: TEXT }}
+              cursor={{ fill: "rgba(125,46,55,0.08)" }}
               formatter={(value, name, props) => [`avg ${value} (n=${props.payload.n})`, ""]}
             />
-            <Bar dataKey="avg" fill={ACCENT_DIM} radius={[0, 4, 4, 0]} />
+            <Bar dataKey="avg" fill={ACCENT} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -1203,13 +1235,26 @@ function DemographicBreakdown({ question, responses, survey }) {
 
   return (
     <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
-      <div style={{ fontFamily: "Inter", fontSize: 11, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
+      <div style={{ fontFamily: "Inter", fontSize: 11, color: TEXT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
         Average response by demographic
       </div>
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-        {ageData.length > 0 && <MiniChart title="Age range" data={ageData} />}
-        {genderData.length > 0 && <MiniChart title="Gender" data={genderData} />}
-      </div>
+      {(ageData.length > 0 || genderData.length > 0) ? (
+        <>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {ageData.length > 0 && <MiniChart title="Age range" data={ageData} />}
+            {genderData.length > 0 && <MiniChart title="Gender" data={genderData} />}
+          </div>
+          {note && (
+            <div style={{ marginTop: 12, fontFamily: "Inter", fontSize: 12, color: TEXT, opacity: 0.85, lineHeight: 1.5 }}>
+              {note}
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic" }}>
+          {scoreable ? "Not enough responses with age or gender data yet." : "This question's answer type (ranking or free text) doesn't reduce to a single average."}
+        </div>
+      )}
     </div>
   );
 }
@@ -1263,10 +1308,11 @@ function RespondentBreakdown({ survey, responses }) {
                 </div>
                 {respDetail && respDetail.trim() && (
                   <div style={{
-                    fontFamily: "Inter", fontSize: 12.5, color: ACCENT, fontStyle: "italic", lineHeight: 1.5,
+                    fontFamily: "Inter", fontSize: 12.5, color: TEXT, fontStyle: "italic", lineHeight: 1.5,
                     background: PANEL, border: `1px solid ${LINE}`, borderRadius: 6, padding: "8px 12px",
                   }}>
-                    Detail: {respDetail}
+                    <span style={{ fontStyle: "normal", fontWeight: 600, color: TEXT }}>Detail: </span>
+                    {respDetail}
                   </div>
                 )}
               </div>
