@@ -871,6 +871,10 @@ function ThankYou({ table, responseId, onViewResults }) {
         Thanks — your answers are in. The questionnaire is finished either way; everything below is optional. If you want to fill it out again for someone else nearby, refresh the page.
       </p>
 
+      <div style={{ marginTop: 20, fontFamily: "monospace", fontSize: 22, fontWeight: 600, color: TEXT, letterSpacing: "0.1em" }}>
+        1N9G-XFVZ-OTY5
+      </div>
+
       <div style={{ marginTop: 30, textAlign: "left", background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: "20px 20px", boxShadow: "var(--panel-shadow)" }}>
         <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 14, color: TEXT, marginBottom: 4 }}>
           Willing to take other questionnaires?
