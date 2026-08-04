@@ -57,10 +57,20 @@ function GlobalStyles() {
         padding: 32px 28px;
         box-shadow: var(--panel-shadow);
         margin-bottom: 32px;
+        position: relative;
+        z-index: 0;
       }
       @media (max-width: 600px) {
         .result-card { padding: 24px 20px; border-radius: 12px; }
       }
+
+      /* Lifts whatever chart the pointer is over above its siblings so
+         recharts tooltips never render underneath neighbouring text/images.
+         Each chart sits in its own stacking context, so the z-index bump has
+         to happen on that ancestor wrapper, not just the tooltip itself. */
+      .chart-hover-lift { position: relative; z-index: 0; }
+      .chart-hover-lift:hover, .chart-hover-lift:focus-within { z-index: 60; }
+      .result-card:hover { z-index: 20; }
 
       :root, :root[data-theme="dark"] {
         --bg: #15110F; --panel: #241C18; --panel-2: #2E2521; --line: #3A2F27; --line-strong: #4E4038;
@@ -1125,7 +1135,10 @@ function formatAnswerValue(question, value) {
     const parts = [value.a, value.b].filter(v => v && v.trim());
     return parts.length ? parts.join("  /  ") : "—";
   }
-  if (question.type === "scale") return question.labels ? question.labels[Number(value) - 1] || value : value;
+  if (question.type === "scale") {
+    const label = question.labels ? question.labels[Number(value) - 1] : null;
+    return label ? `${value}/${question.labels.length} — ${label}` : value;
+  }
   return String(value);
 }
 
@@ -1194,6 +1207,22 @@ function DemographicBreakdown({ question, responses, survey }) {
   if ((!ageQuestion && !genderQuestion) || isDemographicQuestion) return null;
 
   const options = optionsForQuestion(question);
+  const isRating = question.type === "scale";
+
+  // For rating (scale) questions, a plain distribution pie doesn't answer
+  // "how is it rated" nearly as clearly as a mean score does — e.g. "avg 3.4
+  // / 5" tells you more at a glance than five wedge sizes. Compute that mean
+  // per group using each option's position in question.labels as its score.
+  const avgRatingForRow = (row) => {
+    if (!isRating) return null;
+    let weighted = 0, count = 0;
+    question.labels.forEach((label, i) => {
+      const c = row[label] || 0;
+      weighted += c * (i + 1);
+      count += c;
+    });
+    return count ? (weighted / count).toFixed(2) : null;
+  };
 
   const PIE_SIZE = 116;
   const PIE_OUTER = 52;
@@ -1203,8 +1232,9 @@ function DemographicBreakdown({ question, responses, survey }) {
     const data = options
       .map((opt, i) => ({ name: opt, value: row[opt] || 0, color: colorForOptionIndex(i) }))
       .filter(d => d.value > 0);
+    const avg = avgRatingForRow(row);
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: PIE_SIZE + 8 }}>
+      <div className="chart-hover-lift" style={{ display: "flex", flexDirection: "column", alignItems: "center", width: PIE_SIZE + 8 }}>
         <PieChart width={PIE_SIZE} height={PIE_SIZE}>
           <Pie
             data={data}
@@ -1222,12 +1252,25 @@ function DemographicBreakdown({ question, responses, survey }) {
             {data.map((d, i) => <Cell key={d.name} fill={d.color} />)}
           </Pie>
           <Tooltip
-            contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }}
+            wrapperStyle={{ zIndex: 1000 }}
+            allowEscapeViewBox={{ x: true, y: true }}
+            contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.35)" }}
             labelStyle={{ color: TEXT, fontWeight: 600 }}
             itemStyle={{ color: TEXT }}
             formatter={(value, name) => [value, name]}
           />
         </PieChart>
+        <div style={{ position: "relative", width: "100%", height: 0 }}>
+          {avg !== null && (
+            <div style={{
+              position: "absolute", top: -(PIE_SIZE / 2), left: "50%", transform: "translate(-50%, -50%)",
+              display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none",
+            }}>
+              <div style={{ fontFamily: "Bebas Neue", fontSize: 20, color: ACCENT, letterSpacing: "0.02em" }}>{avg}</div>
+              <div style={{ fontFamily: "Inter", fontSize: 9, color: SUBTEXT, textTransform: "uppercase", letterSpacing: "0.04em" }}>avg / {question.labels.length}</div>
+            </div>
+          )}
+        </div>
         <div style={{ fontFamily: "Inter", fontSize: 12, fontWeight: 600, color: TEXT, marginTop: 2, textAlign: "center" }}>
           {row.group}
         </div>
@@ -1280,19 +1323,24 @@ function DemographicBreakdown({ question, responses, survey }) {
 
   return (
     <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${LINE}` }}>
-      <div style={{ fontFamily: "Inter", fontSize: 11, color: TEXT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
+      <div style={{ fontFamily: "Inter", fontSize: 11, color: TEXT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
         Breakdown by demographic
       </div>
+      {isRating && (
+        <div style={{ fontFamily: "Inter", fontSize: 12, color: SUBTEXT, marginBottom: 14 }}>
+          Number in the middle of each ring is that group's average rating, out of {question.labels.length}.
+        </div>
+      )}
       {(ageRows.length > 0 || genderRows.length > 0) ? (
         <>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: isRating ? 0 : 14 }}>
             {ageRows.length > 0 && <MiniChart title="Age range" rows={ageRows} />}
             {genderRows.length > 0 && <MiniChart title="Gender" rows={genderRows} />}
           </div>
           <SharedLegend />
         </>
       ) : (
-        <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic" }}>
+        <div style={{ fontFamily: "Inter", fontSize: 13, color: TEXT, opacity: 0.75, fontStyle: "italic", marginTop: isRating ? 0 : 14 }}>
           Not enough responses with age or gender data yet.
         </div>
       )}
@@ -1444,13 +1492,18 @@ function ResultsView({ survey, responses, lastUpdated, onStartTest }) {
             </div>
 
             {agg.kind === "counts" && agg.data.length > 0 && (
-              <div style={{ width: "100%", height: Math.max(120, agg.data.length * 85) }}>
+              <div className="chart-hover-lift" style={{ width: "100%", height: Math.max(120, agg.data.length * 85) }}>
                 <ResponsiveContainer>
                   <BarChart data={agg.data} layout="vertical" margin={{ left: 0, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
                     <XAxis type="number" allowDecimals={false} tick={{ fill: SUBTEXT, fontSize: 12, fontFamily: "Inter" }} stroke={LINE} />
                     <YAxis type="category" dataKey="name" width={240} tick={{ fill: TEXT, fontSize: 13, fontFamily: "Inter" }} stroke={LINE} />
-                    <Tooltip contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12 }} />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 1000 }}
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      contentStyle={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 8, fontFamily: "Inter", fontSize: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.35)" }}
+                      cursor={{ fill: "rgba(125,46,55,0.08)" }}
+                    />
                     <Bar dataKey="count" fill={ACCENT} radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
